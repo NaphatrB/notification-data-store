@@ -1,0 +1,89 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ANLA Notification Event",
+    "description": "A single captured notification delivered from ANLA to the backend.",
+    "type": "object",
+    "required": [
+        "packageName",
+        "timestamp",
+        "notificationId",
+        "sourceType",
+        "deliveryStatus",
+        "messageHash"
+    ],
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Local auto-generated primary key (Room). Useful for client-side reference but not authoritative on the backend."
+        },
+        "packageName": {
+            "type": "string",
+            "description": "Android package name of the source app (e.g., com.whatsapp)."
+        },
+        "appName": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Human-readable app label resolved from PackageManager. Null if resolution failed."
+        },
+        "title": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Notification title or sender name (for MessagingStyle)."
+        },
+        "text": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Notification body text or message content."
+        },
+        "bigText": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Expanded content from BigTextStyle, MessagingStyle (formatted as 'sender: message' per line), or InboxStyle (one line per item). Null when no structured content is available."
+        },
+        "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Epoch milliseconds when the notification was posted (StatusBarNotification.postTime). For MessagingStyle messages extracted from group summaries, this is the per-message timestamp."
+        },
+        "notificationId": {
+            "type": "integer",
+            "description": "Android notification ID (StatusBarNotification.id). Multiple entities may share the same notificationId when split from a group summary."
+        },
+        "sourceType": {
+            "type": "string",
+            "enum": [
+                "whatsapp",
+                "telegram",
+                "facebook",
+                "sms",
+                "notification"
+            ],
+            "description": "Source category tag. 'notification' is the default for unmapped packages."
+        },
+        "deliveryStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "SENT",
+                "FAILED"
+            ],
+            "description": "Client-side delivery tracking. Backend should only receive PENDING entries."
+        },
+        "messageHash": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "SHA-256 hex string of 'packageName|sender|text|timestamp'. The backend MUST treat this as an idempotency key — reject or upsert on duplicate hash. Null when text is blank."
+        }
+    },
+    "additionalProperties": false
+}
