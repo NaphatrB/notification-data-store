@@ -1,8 +1,10 @@
 services:
   db:
     image: postgres:15
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: anla
+      POSTGRES_PASSWORD: anla
+      POSTGRES_DB: anla_db
     volumes:
       - ./pgdata:/var/lib/postgresql/data:Z
     healthcheck:
@@ -12,9 +14,9 @@ services:
       retries: 5
 
   api:
-    build: .
-    env_file:
-      - .env
+    image: registry.buffalo-cliff.ts.net/anla-api:latest
+    environment:
+      DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db
     ports:
       - "8000:8000"
     depends_on:

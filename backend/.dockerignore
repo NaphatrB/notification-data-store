@@ -1,0 +1,7 @@
+pgdata/
+.env
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.git/
