@@ -4,7 +4,7 @@ services:
     env_file:
       - .env
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./pgdata:/var/lib/postgresql/data:Z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U anla"]
       interval: 5s
@@ -20,6 +20,3 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
-volumes:
-  pgdata:

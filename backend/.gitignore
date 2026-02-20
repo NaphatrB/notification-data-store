@@ -4,3 +4,4 @@ __pycache__/
 *.pyo
 alembic/versions/__pycache__/
 .venv/
+pgdata/
