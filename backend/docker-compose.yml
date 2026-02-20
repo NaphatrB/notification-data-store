@@ -26,8 +26,7 @@ services:
         condition: service_healthy
 
   parser:
-    image: registry.buffalo-cliff.ts.net/anla-api:latest
-    command: ["./parser-entrypoint.sh"]
+    image: registry.buffalo-cliff.ts.net/anla-parser:latest
     environment:
       DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db
       RAW_DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db
@@ -42,6 +41,7 @@ services:
       PARSER_TEXT_FILTER_ENABLED: "false"
     ports:
       - "9090:9090"
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy

@@ -48,7 +48,9 @@ def upgrade() -> None:
     op.execute("CREATE SEQUENCE raw_events_seq_seq OWNED BY raw_events.seq")
     op.execute(
         """
-        SELECT setval('raw_events_seq_seq', COALESCE((SELECT MAX(seq) FROM raw_events), 0))
+        SELECT setval('raw_events_seq_seq',
+                       COALESCE((SELECT MAX(seq) FROM raw_events), 1),
+                       COALESCE((SELECT MAX(seq) FROM raw_events) IS NOT NULL, false))
         """
     )
     op.execute(

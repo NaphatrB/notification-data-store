@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONPATH=/app
+
+COPY requirements-parser.txt .
+RUN pip install --no-cache-dir -r requirements-parser.txt
+
+COPY app/models/ app/models/
+COPY app/parser/ app/parser/
+COPY app/__init__.py app/
+COPY parser-entrypoint.sh .
+
+RUN chmod +x parser-entrypoint.sh
+
+CMD ["./parser-entrypoint.sh"]
