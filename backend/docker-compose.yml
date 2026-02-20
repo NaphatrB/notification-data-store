@@ -17,8 +17,31 @@ services:
     image: registry.buffalo-cliff.ts.net/anla-api:latest
     environment:
       DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-changeme}
+      INGESTION_PUBLIC_BASE_URL: ${INGESTION_PUBLIC_BASE_URL:-https://envy.buffalo-cliff.ts.net}
     ports:
       - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  parser:
+    image: registry.buffalo-cliff.ts.net/anla-api:latest
+    command: ["./parser-entrypoint.sh"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db
+      RAW_DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db
+      LLM_ENDPOINT: http://llm.buffalo-cliff.ts.net:11434
+      PARSER_BATCH_SIZE: "10"
+      PARSER_NAME: pricing_v1
+      POLL_INTERVAL_SECONDS: "30"
+      # Candidate filters (comma-separated, empty = accept all)
+      PARSER_SOURCE_FILTER: "whatsapp"
+      PARSER_PACKAGE_FILTER: ""
+      PARSER_APP_FILTER: ""
+      PARSER_TEXT_FILTER_ENABLED: "false"
+    ports:
+      - "9090:9090"
     depends_on:
       db:
         condition: service_healthy

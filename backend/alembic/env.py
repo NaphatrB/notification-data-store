@@ -11,6 +11,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.models import Base
 
+# Import parser models so they are registered with Base.metadata
+import app.parser.models  # noqa: F401
+
 # Read DATABASE_URL from environment
 config = context.config
 database_url = os.environ["DATABASE_URL"]

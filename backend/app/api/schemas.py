@@ -5,6 +5,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+# ---------------------------------------------------------------------------
+# Ingestion schemas (existing)
+# ---------------------------------------------------------------------------
+
+
 class NotificationEventIn(BaseModel):
     """Incoming ANLA notification event. Matches json-schema.json contract."""
 
@@ -66,3 +71,42 @@ class StatsResponse(BaseModel):
     byAppName: dict[str, int]
     byPackageName: dict[str, int]
     lastEventAt: datetime | None
+
+
+# ---------------------------------------------------------------------------
+# Control Plane schemas
+# ---------------------------------------------------------------------------
+
+
+class DeviceRegisterRequest(BaseModel):
+    """Body for POST /control/v1/devices/register."""
+
+    deviceUuid: str
+    deviceName: str | None = None
+    deviceModel: str | None = None
+    androidVersion: str | None = None
+    appVersion: str | None = None
+
+
+class DeviceRegisterResponse(BaseModel):
+    deviceId: UUID
+    status: str
+
+
+class DeviceApproveResponse(BaseModel):
+    deviceId: UUID
+    status: str
+    token: str  # plaintext — returned ONCE
+
+
+class DeviceRevokeResponse(BaseModel):
+    deviceId: UUID
+    status: str
+
+
+class DeviceConfigResponse(BaseModel):
+    status: str
+    apiBaseUrl: str | None = None
+    captureMode: str
+    pollIntervalSeconds: int
+    parserEnabled: bool

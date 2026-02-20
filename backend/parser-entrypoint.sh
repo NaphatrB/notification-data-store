@@ -7,5 +7,5 @@ python -c "from app.db import wait_for_db; wait_for_db()"
 echo "Running migrations..."
 alembic upgrade head
 
-echo "Starting API..."
-exec uvicorn app.api.main:app --host 0.0.0.0 --port 8000
+echo "Starting parser..."
+exec python -m app.parser "$@"

@@ -8,9 +8,10 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.models import RawEvent
-from app.schemas import (
+from app.api.auth import require_device_token
+from app.db import get_db
+from app.models import Device, RawEvent
+from app.api.schemas import (
     EventListResponse,
     EventOut,
     EventResponse,
@@ -24,6 +25,7 @@ router = APIRouter(prefix="/api/v1", tags=["events"])
 @router.post("/events", response_model=EventResponse, status_code=201)
 async def ingest_event(
     event: NotificationEventIn,
+    device: Device = Depends(require_device_token),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     # Convert epoch millis → UTC datetime
