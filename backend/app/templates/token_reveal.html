@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Token Issued — ANLA Admin{% endblock %}
+
+{% block content %}
+<h1>Token Issued</h1>
+
+<div class="card">
+  <p style="margin-bottom: 0.75rem;">
+    <strong>Device:</strong> {{ device_name or device_uuid }}
+  </p>
+  <p style="margin-bottom: 0.75rem;">
+    <strong>Action:</strong> {{ action }}
+  </p>
+
+  <div style="background: rgba(251,191,36,0.1); border: 1px solid var(--yellow); border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
+    <p style="color: var(--yellow); font-size: 0.85rem; font-weight: 600;">⚠️ Copy this token now. It will not be shown again.</p>
+  </div>
+
+  <div class="token-box">{{ token }}</div>
+</div>
+
+<p class="mt-2"><a href="/admin/devices/{{ device_id }}" class="btn btn-primary">Continue to Device</a></p>
+{% endblock %}

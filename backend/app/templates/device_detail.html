@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}{{ d.device.device_name or d.device.device_uuid }} — ANLA Admin{% endblock %}
+
+{% block content %}
+<h1>Device Detail</h1>
+
+<div class="card">
+  <dl>
+    <dt>Device Name</dt>
+    <dd>{{ d.device.device_name or '—' }}</dd>
+
+    <dt>Device UUID</dt>
+    <dd class="text-dim" style="font-family: monospace; font-size: 0.8rem;">{{ d.device.device_uuid }}</dd>
+
+    <dt>Server ID</dt>
+    <dd class="text-dim" style="font-family: monospace; font-size: 0.8rem;">{{ d.device.id }}</dd>
+
+    <dt>Status</dt>
+    <dd><span class="badge badge-{{ d.device.status }}">{{ d.device.status }}</span></dd>
+
+    <dt>Device Model</dt>
+    <dd>{{ d.device.device_model or '—' }}</dd>
+
+    <dt>Android Version</dt>
+    <dd>{{ d.device.android_version or '—' }}</dd>
+
+    <dt>App Version</dt>
+    <dd>{{ d.device.app_version or '—' }}</dd>
+
+    <dt>Approved At</dt>
+    <dd>{% if d.device.approved_at %}{{ d.device.approved_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}—{% endif %}</dd>
+
+    <dt>Last Seen</dt>
+    <dd>{% if d.device.last_seen_at %}{{ d.device.last_seen_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}—{% endif %}</dd>
+
+    <dt>Total Events</dt>
+    <dd>{{ d.total_events }}</dd>
+
+    <dt>Last Event</dt>
+    <dd>{% if d.last_event_at %}{{ d.last_event_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}—{% endif %}</dd>
+
+    <dt>Active Tokens</dt>
+    <dd>{{ active_token_count }}</dd>
+  </dl>
+</div>
+
+<div class="actions">
+  {% if d.device.status == 'pending' %}
+  <form method="POST" action="/admin/devices/{{ d.device.id }}/approve">
+    <button type="submit" class="btn btn-green">Approve Device</button>
+  </form>
+  {% endif %}
+
+  {% if d.device.status == 'approved' %}
+  <form method="POST" action="/admin/devices/{{ d.device.id }}/rotate-token">
+    <button type="submit" class="btn btn-orange">Rotate Token</button>
+  </form>
+  {% endif %}
+
+  {% if d.device.status != 'revoked' %}
+  <form method="POST" action="/admin/devices/{{ d.device.id }}/revoke"
+        onsubmit="return confirm('Are you sure you want to revoke this device? All tokens will be invalidated.');">
+    <button type="submit" class="btn btn-red">Revoke Device</button>
+  </form>
+  {% endif %}
+</div>
+
+<p class="mt-2"><a href="/admin/devices" style="color: var(--accent); font-size: 0.85rem;">← Back to devices</a></p>
+{% endblock %}

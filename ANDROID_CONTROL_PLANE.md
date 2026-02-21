@@ -20,7 +20,7 @@ Integrate the Android app with the server's Control Plane v1. After this:
 ## Server Base URL
 
 ```
-https://envy.buffalo-cliff.ts.net
+https://anla-api.buffalo-cliff.ts.net
 ```
 
 All endpoints below are relative to this base.

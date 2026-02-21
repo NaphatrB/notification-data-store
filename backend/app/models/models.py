@@ -1,7 +1,7 @@
 import uuid
 
 from sqlalchemy import BigInteger, Boolean, ForeignKey, Index, Integer, Text, func
-from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -38,11 +38,15 @@ class RawEvent(Base):
     received_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
     )
+    device_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("devices.id"), nullable=True
+    )
 
     __table_args__ = (
         Index("ix_raw_events_event_timestamp", "event_timestamp"),
         Index("ix_raw_events_source_type", "source_type"),
         Index("ix_raw_events_seq", "seq"),
+        Index("ix_raw_events_device_id", "device_id"),
     )
 
 
@@ -135,3 +139,28 @@ class DeviceConfig(Base):
     )
 
     device: Mapped["Device"] = relationship(back_populates="config")
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    actor: Mapped[str] = mapped_column(Text, nullable=False)
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    target_type: Mapped[str] = mapped_column(Text, nullable=False)
+    target_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    metadata_: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_audit_logs_created_at", "created_at"),
+        Index("ix_audit_logs_target_id", "target_id"),
+    )

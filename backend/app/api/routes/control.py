@@ -4,30 +4,38 @@ All endpoints live under /control/v1/.
 """
 
 import logging
-import os
-from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import generate_token, hash_token, require_admin, require_device_token
+from app.api.auth import require_admin, require_device_token
 from app.api.schemas import (
     DeviceApproveResponse,
     DeviceConfigResponse,
+    DeviceListItem,
+    DeviceListResponse,
     DeviceRegisterRequest,
     DeviceRegisterResponse,
     DeviceRevokeResponse,
+    TokenRotateResponse,
+)
+from app.api.services import (
+    DeviceNotFoundError,
+    DeviceStateError,
+    approve_device_svc,
+    get_device_svc,
+    list_devices_svc,
+    revoke_device_svc,
+    rotate_token_svc,
 )
 from app.db import get_db
-from app.models import Device, DeviceConfig, DeviceToken
+from app.models import Device, DeviceConfig
 
 logger = logging.getLogger("control_plane")
 
 router = APIRouter(prefix="/control/v1", tags=["control-plane"])
-
-INGESTION_PUBLIC_BASE_URL: str = os.environ.get("INGESTION_PUBLIC_BASE_URL", "")
 
 
 # ---------------------------------------------------------------------------
@@ -89,53 +97,17 @@ async def approve_device(
     db: AsyncSession = Depends(get_db),
 ) -> DeviceApproveResponse:
     """Approve a pending device. Generates and returns token ONCE."""
-    stmt = select(Device).where(Device.id == device_id)
-    result = await db.execute(stmt)
-    device = result.scalar_one_or_none()
-
-    if device is None:
+    try:
+        result = await approve_device_svc(db, device_id)
+    except DeviceNotFoundError:
         raise HTTPException(status_code=404, detail="Device not found")
-
-    if device.status == "approved":
-        raise HTTPException(status_code=409, detail="Device already approved")
-
-    if device.status in ("revoked", "disabled"):
-        raise HTTPException(
-            status_code=409,
-            detail=f"Cannot approve device in '{device.status}' state",
-        )
-
-    # Transition to approved
-    now = datetime.now(timezone.utc)
-    device.status = "approved"
-    device.approved_at = now
-
-    # Generate token
-    plaintext = generate_token()
-    token = DeviceToken(
-        device_id=device.id,
-        token_hash=hash_token(plaintext),
-        token_name="auto-approval",
-    )
-    db.add(token)
-
-    # Create default config
-    config = DeviceConfig(
-        device_id=device.id,
-        api_base_url=INGESTION_PUBLIC_BASE_URL or None,
-        capture_mode="WHATSAPP_ONLY",
-        poll_interval_seconds=300,
-        parser_enabled=True,
-    )
-    db.add(config)
-
-    await db.commit()
-    logger.info("Device approved: id=%s", device_id)
+    except DeviceStateError as e:
+        raise HTTPException(status_code=409, detail=e.detail)
 
     return DeviceApproveResponse(
-        deviceId=device.id,
-        status=device.status,
-        token=plaintext,
+        deviceId=result.device.id,
+        status=result.device.status,
+        token=result.plaintext_token,
     )
 
 
@@ -154,30 +126,12 @@ async def revoke_device(
     db: AsyncSession = Depends(get_db),
 ) -> DeviceRevokeResponse:
     """Revoke a device — invalidates all tokens."""
-    stmt = select(Device).where(Device.id == device_id)
-    result = await db.execute(stmt)
-    device = result.scalar_one_or_none()
-
-    if device is None:
+    try:
+        device = await revoke_device_svc(db, device_id)
+    except DeviceNotFoundError:
         raise HTTPException(status_code=404, detail="Device not found")
-
-    if device.status == "revoked":
-        raise HTTPException(status_code=409, detail="Device already revoked")
-
-    now = datetime.now(timezone.utc)
-    device.status = "revoked"
-
-    # Revoke all active tokens
-    tokens_stmt = select(DeviceToken).where(
-        DeviceToken.device_id == device_id,
-        DeviceToken.revoked_at.is_(None),
-    )
-    tokens_result = await db.execute(tokens_stmt)
-    for t in tokens_result.scalars().all():
-        t.revoked_at = now
-
-    await db.commit()
-    logger.info("Device revoked: id=%s", device_id)
+    except DeviceStateError as e:
+        raise HTTPException(status_code=409, detail=e.detail)
 
     return DeviceRevokeResponse(deviceId=device.id, status=device.status)
 
@@ -225,4 +179,112 @@ async def get_device_config(
         captureMode=config.capture_mode,
         pollIntervalSeconds=config.poll_interval_seconds,
         parserEnabled=config.parser_enabled,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 4.5  Fleet Visibility — List Devices (Admin Only)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/devices",
+    response_model=DeviceListResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def list_devices(
+    db: AsyncSession = Depends(get_db),
+    status: str | None = Query(None),
+    search: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> DeviceListResponse:
+    """Return paginated list of all devices with ingestion stats."""
+    devices, total = await list_devices_svc(
+        db, status=status, search=search, limit=limit, offset=offset
+    )
+
+    items = [
+        DeviceListItem(
+            deviceId=d.device.id,
+            deviceUuid=d.device.device_uuid,
+            deviceName=d.device.device_name,
+            status=d.device.status,
+            lastSeenAt=d.device.last_seen_at,
+            approvedAt=d.device.approved_at,
+            appVersion=d.device.app_version,
+            androidVersion=d.device.android_version,
+            totalEventsIngested=d.total_events,
+            lastEventAt=d.last_event_at,
+        )
+        for d in devices
+    ]
+
+    return DeviceListResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 4.6  Fleet Visibility — Get Single Device (Admin Only)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/devices/{device_id}",
+    response_model=DeviceListItem,
+    dependencies=[Depends(require_admin)],
+)
+async def get_device(
+    device_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> DeviceListItem:
+    """Return a single device with ingestion stats."""
+    try:
+        d = await get_device_svc(db, device_id)
+    except DeviceNotFoundError:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    return DeviceListItem(
+        deviceId=d.device.id,
+        deviceUuid=d.device.device_uuid,
+        deviceName=d.device.device_name,
+        status=d.device.status,
+        lastSeenAt=d.device.last_seen_at,
+        approvedAt=d.device.approved_at,
+        appVersion=d.device.app_version,
+        androidVersion=d.device.android_version,
+        totalEventsIngested=d.total_events,
+        lastEventAt=d.last_event_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 4.7  Token Rotation (Admin Only)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/devices/{device_id}/rotate-token",
+    response_model=TokenRotateResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def rotate_token(
+    device_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> TokenRotateResponse:
+    """Generate a new token and revoke all previous active tokens."""
+    try:
+        result = await rotate_token_svc(db, device_id)
+    except DeviceNotFoundError:
+        raise HTTPException(status_code=404, detail="Device not found")
+    except DeviceStateError as e:
+        raise HTTPException(status_code=409, detail=e.detail)
+
+    return TokenRotateResponse(
+        deviceId=result.device.id,
+        token=result.plaintext_token,
     )

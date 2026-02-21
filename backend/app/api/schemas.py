@@ -110,3 +110,35 @@ class DeviceConfigResponse(BaseModel):
     captureMode: str
     pollIntervalSeconds: int
     parserEnabled: bool
+
+
+# ---------------------------------------------------------------------------
+# Fleet Visibility schemas (Phase 2A)
+# ---------------------------------------------------------------------------
+
+
+class DeviceListItem(BaseModel):
+    """Single device in fleet listing — includes computed ingestion stats."""
+
+    deviceId: UUID
+    deviceUuid: str
+    deviceName: str | None = None
+    status: str
+    lastSeenAt: datetime | None = None
+    approvedAt: datetime | None = None
+    appVersion: str | None = None
+    androidVersion: str | None = None
+    totalEventsIngested: int = 0
+    lastEventAt: datetime | None = None
+
+
+class DeviceListResponse(BaseModel):
+    items: list[DeviceListItem]
+    total: int
+    limit: int
+    offset: int
+
+
+class TokenRotateResponse(BaseModel):
+    deviceId: UUID
+    token: str  # plaintext — returned ONCE

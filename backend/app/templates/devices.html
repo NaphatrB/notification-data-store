@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Devices — ANLA Admin{% endblock %}
+
+{% block content %}
+<h1>Devices <span class="text-dim text-sm">({{ devices | length }})</span></h1>
+
+{% if devices %}
+<table>
+  <thead>
+    <tr>
+      <th>Device Name</th>
+      <th>Status</th>
+      <th>Last Seen</th>
+      <th>App Version</th>
+      <th>Events</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in devices %}
+    <tr>
+      <td>
+        <a href="/admin/devices/{{ d.device.id }}" style="color: var(--accent); text-decoration: none;">
+          {{ d.device.device_name or d.device.device_uuid }}
+        </a>
+      </td>
+      <td>
+        <span class="badge badge-{{ d.device.status }}">{{ d.device.status }}</span>
+      </td>
+      <td class="text-dim">
+        {% if d.device.last_seen_at %}
+          {{ d.device.last_seen_at.strftime('%Y-%m-%d %H:%M') }}
+        {% else %}
+          —
+        {% endif %}
+      </td>
+      <td class="text-dim">{{ d.device.app_version or '—' }}</td>
+      <td>{{ d.total_events }}</td>
+      <td>
+        <a href="/admin/devices/{{ d.device.id }}" class="btn btn-primary btn-sm">View</a>
+        {% if d.device.status == 'pending' %}
+        <form method="POST" action="/admin/devices/{{ d.device.id }}/approve" style="display:inline;">
+          <button type="submit" class="btn btn-green btn-sm">Approve</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card">
+  <p class="text-dim">No devices registered yet.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -43,6 +43,7 @@ async def ingest_event(
         event_timestamp=event_timestamp,
         notification_id=event.notificationId,
         source_type=event.sourceType,
+        device_id=device.id,
     )
 
     try:
