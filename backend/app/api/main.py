@@ -5,6 +5,7 @@ from app.db import async_session
 from app.api.routes.admin import router as admin_router
 from app.api.routes.control import router as control_router
 from app.api.routes.events import router as events_router
+from app.api.routes.pricing import router as pricing_router
 
 import logging
 import os
@@ -14,12 +15,13 @@ logger = logging.getLogger("anla")
 app = FastAPI(
     title="ANLA Notification Data Store",
     description="Ingestion & Control Plane backend for ANLA.",
-    version="0.4.0",
+    version="0.5.0",
 )
 
 app.include_router(events_router)
 app.include_router(control_router)
 app.include_router(admin_router)
+app.include_router(pricing_router)
 
 
 @app.on_event("startup")

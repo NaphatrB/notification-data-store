@@ -148,3 +148,65 @@ class DeviceReinstateResponse(BaseModel):
     deviceId: UUID
     status: str
     requiresToken: bool = True
+
+
+# ---------------------------------------------------------------------------
+# Pricing Query schemas (Phase 2.5)
+# ---------------------------------------------------------------------------
+
+
+class PricingItemOut(BaseModel):
+    """Single structured pricing record — camelCase output."""
+
+    rawEventId: UUID
+    seq: int
+    supplier: str | None = None
+    productGrade: str | None = None
+    size: str | None = None
+    quantityKg: float | None = None
+    pricePerKg: float | None = None
+    currency: str | None = None
+    totalKg: float | None = None
+    confidence: float | None = None
+    parserVersion: str
+    eventTimestamp: datetime
+
+
+class PricingListResponse(BaseModel):
+    items: list[PricingItemOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class PricingRawLineItem(BaseModel):
+    """Single line item within a raw event grouping."""
+
+    productGrade: str | None = None
+    size: str | None = None
+    quantityKg: float | None = None
+    pricePerKg: float | None = None
+    currency: str | None = None
+    confidence: float | None = None
+    parserVersion: str
+
+
+class PricingRawEventResponse(BaseModel):
+    """All structured pricing items grouped by raw event."""
+
+    rawEventId: UUID
+    eventTimestamp: datetime
+    supplier: str | None = None
+    totalKg: float | None = None
+    items: list[PricingRawLineItem]
+
+
+class PricingSummaryResponse(BaseModel):
+    """Aggregate pricing statistics."""
+
+    averagePricePerKg: float | None = None
+    totalVolumeKg: float = 0
+    uniqueSuppliers: int = 0
+    uniqueEvents: int = 0
+    minPricePerKg: float | None = None
+    maxPricePerKg: float | None = None
