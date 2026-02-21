@@ -58,6 +58,13 @@
   </form>
   {% endif %}
 
+  {% if d.device.status == 'revoked' %}
+  <form method="POST" action="/admin/devices/{{ d.device.id }}/reinstate"
+        onsubmit="return confirm('This will re-enable the device but it will require a new token.');">
+    <button type="submit" class="btn btn-green">Reinstate Device</button>
+  </form>
+  {% endif %}
+
   {% if d.device.status != 'revoked' %}
   <form method="POST" action="/admin/devices/{{ d.device.id }}/revoke"
         onsubmit="return confirm('Are you sure you want to revoke this device? All tokens will be invalidated.');">

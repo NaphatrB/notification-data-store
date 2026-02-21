@@ -23,6 +23,7 @@ from app.api.services import (
     approve_device_svc,
     get_device_svc,
     list_devices_svc,
+    reinstate_device_svc,
     revoke_device_svc,
     rotate_token_svc,
 )
@@ -314,6 +315,41 @@ async def rotate_token_action(
             "error": None,
             "success": None,
         },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Reinstate Action
+# ---------------------------------------------------------------------------
+
+
+@router.post("/devices/{device_id}/reinstate")
+async def reinstate_action(
+    request: Request,
+    device_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reinstate a revoked device, redirect back to detail."""
+    user = _require_session(request)
+    if user is None:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    try:
+        await reinstate_device_svc(db, device_id)
+    except DeviceNotFoundError:
+        return RedirectResponse(
+            url=f"/admin/devices/{device_id}?error=Device+not+found",
+            status_code=303,
+        )
+    except DeviceStateError as e:
+        return RedirectResponse(
+            url=f"/admin/devices/{device_id}?error={e.detail}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/admin/devices/{device_id}?success=Device+reinstated.+Issue+a+new+token+to+restore+ingestion.",
+        status_code=303,
     )
 
 

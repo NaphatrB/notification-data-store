@@ -166,7 +166,7 @@ async def approve_device_svc(db: AsyncSession, device_id: UUID) -> ApproveResult
     config = DeviceConfig(
         device_id=device.id,
         api_base_url=INGESTION_PUBLIC_BASE_URL or None,
-        capture_mode="WHATSAPP_ONLY",
+        capture_mode="",
         poll_interval_seconds=300,
         parser_enabled=True,
     )
@@ -285,3 +285,40 @@ async def rotate_token_svc(db: AsyncSession, device_id: UUID) -> RotateResult:
     await db.commit()
 
     return RotateResult(device=device, plaintext_token=plaintext)
+
+
+async def reinstate_device_svc(db: AsyncSession, device_id: UUID) -> Device:
+    """Reinstate a revoked device (revoked → approved).
+
+    Does NOT issue a new token — admin must call rotate-token separately.
+    Raises DeviceNotFoundError or DeviceStateError.
+    """
+    stmt = select(Device).where(Device.id == device_id)
+    result = await db.execute(stmt)
+    device = result.scalar_one_or_none()
+
+    if device is None:
+        raise DeviceNotFoundError()
+    if device.status != "revoked":
+        raise DeviceStateError(
+            f"Only revoked devices can be reinstated (current: '{device.status}')"
+        )
+
+    now = datetime.now(timezone.utc)
+    device.status = "approved"
+    device.approved_at = now
+
+    await db.commit()
+    logger.info("Device reinstated: id=%s", device_id)
+
+    await log_audit(
+        db,
+        actor="admin",
+        action="device_reinstated",
+        target_type="device",
+        target_id=device.id,
+        metadata={"previous_status": "revoked"},
+    )
+    await db.commit()
+
+    return device

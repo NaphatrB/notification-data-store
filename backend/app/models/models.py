@@ -126,7 +126,7 @@ class DeviceConfig(Base):
     )
     api_base_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     capture_mode: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default="WHATSAPP_ONLY"
+        Text, nullable=False, server_default="''"
     )
     poll_interval_seconds: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="300"

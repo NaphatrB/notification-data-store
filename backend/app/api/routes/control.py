@@ -18,6 +18,7 @@ from app.api.schemas import (
     DeviceListResponse,
     DeviceRegisterRequest,
     DeviceRegisterResponse,
+    DeviceReinstateResponse,
     DeviceRevokeResponse,
     TokenRotateResponse,
 )
@@ -27,6 +28,7 @@ from app.api.services import (
     approve_device_svc,
     get_device_svc,
     list_devices_svc,
+    reinstate_device_svc,
     revoke_device_svc,
     rotate_token_svc,
 )
@@ -287,4 +289,33 @@ async def rotate_token(
     return TokenRotateResponse(
         deviceId=result.device.id,
         token=result.plaintext_token,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 4.8  Reinstate Device (Admin Only)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/devices/{device_id}/reinstate",
+    response_model=DeviceReinstateResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def reinstate_device(
+    device_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> DeviceReinstateResponse:
+    """Reinstate a revoked device. Does NOT issue a new token."""
+    try:
+        device = await reinstate_device_svc(db, device_id)
+    except DeviceNotFoundError:
+        raise HTTPException(status_code=404, detail="Device not found")
+    except DeviceStateError as e:
+        raise HTTPException(status_code=409, detail=e.detail)
+
+    return DeviceReinstateResponse(
+        deviceId=device.id,
+        status=device.status,
+        requiresToken=True,
     )

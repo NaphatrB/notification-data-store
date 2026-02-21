@@ -142,3 +142,9 @@ class DeviceListResponse(BaseModel):
 class TokenRotateResponse(BaseModel):
     deviceId: UUID
     token: str  # plaintext — returned ONCE
+
+
+class DeviceReinstateResponse(BaseModel):
+    deviceId: UUID
+    status: str
+    requiresToken: bool = True
