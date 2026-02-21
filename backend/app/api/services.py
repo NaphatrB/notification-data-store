@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.audit import log_audit
@@ -322,3 +322,63 @@ async def reinstate_device_svc(db: AsyncSession, device_id: UUID) -> Device:
     await db.commit()
 
     return device
+
+
+async def delete_device_svc(db: AsyncSession, device_id: UUID) -> dict:
+    """Permanently delete a revoked device and its tokens/config.
+
+    - Nullifies device_id on raw_events (preserves event data)
+    - Deletes device_tokens
+    - Deletes device_config
+    - Deletes the device row
+
+    Raises DeviceNotFoundError or DeviceStateError.
+    """
+    stmt = select(Device).where(Device.id == device_id)
+    result = await db.execute(stmt)
+    device = result.scalar_one_or_none()
+
+    if device is None:
+        raise DeviceNotFoundError()
+    if device.status != "revoked":
+        raise DeviceStateError(
+            f"Only revoked devices can be deleted (current: '{device.status}')"
+        )
+
+    device_name = device.device_name
+    device_uuid = device.device_uuid
+
+    # Nullify device_id on raw_events (preserve the data)
+    await db.execute(
+        update(RawEvent)
+        .where(RawEvent.device_id == device_id)
+        .values(device_id=None)
+    )
+
+    # Delete tokens
+    await db.execute(
+        delete(DeviceToken).where(DeviceToken.device_id == device_id)
+    )
+
+    # Delete config
+    await db.execute(
+        delete(DeviceConfig).where(DeviceConfig.device_id == device_id)
+    )
+
+    # Delete device
+    await db.delete(device)
+    await db.commit()
+
+    logger.info("Device deleted: id=%s name=%s", device_id, device_name)
+
+    await log_audit(
+        db,
+        actor="admin",
+        action="device_deleted",
+        target_type="device",
+        target_id=device_id,
+        metadata={"deviceName": device_name, "deviceUuid": device_uuid},
+    )
+    await db.commit()
+
+    return {"deviceId": device_id, "deviceName": device_name}

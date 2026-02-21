@@ -150,6 +150,11 @@ class DeviceReinstateResponse(BaseModel):
     requiresToken: bool = True
 
 
+class DeviceDeleteResponse(BaseModel):
+    deviceId: UUID
+    deleted: bool = True
+
+
 # ---------------------------------------------------------------------------
 # Pricing Query schemas (Phase 2.5)
 # ---------------------------------------------------------------------------

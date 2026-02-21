@@ -8,6 +8,21 @@
 
 <form id="pricing-filters" class="filter-bar">
   <div class="filter-group">
+    <label for="q">Search</label>
+    <input type="text" name="q" id="q" placeholder="sender, supplier, size, grade…" style="min-width:180px;">
+  </div>
+
+  <div class="filter-group">
+    <label for="sender">Sender</label>
+    <select name="sender" id="sender">
+      <option value="">All</option>
+      {% for sn in senders %}
+      <option value="{{ sn }}">{{ sn }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
     <label for="supplier">Supplier</label>
     <select name="supplier" id="supplier">
       <option value="">All</option>
@@ -49,12 +64,12 @@
 
   <div class="filter-group">
     <label for="from">From</label>
-    <input type="date" name="from" id="from">
+    <input type="datetime-local" name="from" id="from">
   </div>
 
   <div class="filter-group">
     <label for="to">To</label>
-    <input type="date" name="to" id="to">
+    <input type="datetime-local" name="to" id="to">
   </div>
 
   <div class="filter-group">
@@ -88,8 +103,23 @@
     </a>
   </div>
 
+  <div class="filter-group">
+    <label>&nbsp;</label>
+    <button type="button" class="btn" id="rerun-btn"
+            style="background:#d35400; color:#fff; border:none;"
+            onclick="confirmRerun()">
+      🔄 Rerun All
+    </button>
+  </div>
+
   <span class="htmx-indicator">Loading…</span>
 </form>
+
+{% if request.query_params.get('rerun') %}
+<div class="alert alert-success" style="margin:12px 0; padding:10px 16px; background:#d4edda; border:1px solid #c3e6cb; border-radius:4px; color:#155724;">
+  ✅ Parser rerun triggered — deleted {{ request.query_params.get('deleted', '?') }} prices and {{ request.query_params.get('dl', '?') }} dead letters. The parser will re-process all events on its next poll cycle.
+</div>
+{% endif %}
 
 <div id="pricing-table"
      hx-get="/admin/pricing/table"
@@ -100,6 +130,16 @@
 </div>
 
 <script>
+function confirmRerun() {
+  if (confirm('⚠️ This will DELETE all parsed pricing data and dead letters, then reset the parser offset to 0.\n\nThe parser will re-process all raw events from scratch on its next poll cycle.\n\nContinue?')) {
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/admin/parser/rerun';
+    document.body.appendChild(form);
+    form.submit();
+  }
+}
+
 // Keep CSV export link in sync with filter values
 document.getElementById('export-btn').addEventListener('click', function(e) {
   e.preventDefault();

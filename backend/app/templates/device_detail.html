@@ -63,6 +63,10 @@
         onsubmit="return confirm('This will re-enable the device but it will require a new token.');">
     <button type="submit" class="btn btn-green">Reinstate Device</button>
   </form>
+  <form method="POST" action="/admin/devices/{{ d.device.id }}/delete"
+        onsubmit="return confirm('PERMANENTLY delete this device? Tokens and config will be removed. Raw events will be preserved but unlinked. This cannot be undone.');">
+    <button type="submit" class="btn btn-red">Delete Device</button>
+  </form>
   {% endif %}
 
   {% if d.device.status != 'revoked' %}

@@ -26,6 +26,7 @@ from app.api.services import (
     DeviceNotFoundError,
     DeviceStateError,
     approve_device_svc,
+    delete_device_svc,
     get_device_svc,
     list_devices_svc,
     reinstate_device_svc,
@@ -324,6 +325,41 @@ async def reinstate_action(
 
     return RedirectResponse(
         url=f"/admin/devices/{device_id}?success=Device+reinstated.+Issue+a+new+token+to+restore+ingestion.",
+        status_code=303,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Delete Action
+# ---------------------------------------------------------------------------
+
+
+@router.post("/devices/{device_id}/delete")
+async def delete_action(
+    request: Request,
+    device_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently delete a revoked device, redirect to device list."""
+    user = require_session(request)
+    if user is None:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    try:
+        await delete_device_svc(db, device_id)
+    except DeviceNotFoundError:
+        return RedirectResponse(
+            url="/admin/devices?error=Device+not+found",
+            status_code=303,
+        )
+    except DeviceStateError as e:
+        return RedirectResponse(
+            url=f"/admin/devices/{device_id}?error={e.detail}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url="/admin/devices?success=Device+permanently+deleted",
         status_code=303,
     )
 

@@ -43,26 +43,28 @@ def persist_extraction(
             raw_event_id,
         )
 
-    # Insert one row per line item
+    # Insert one row per complete line item, per offer
     rows_inserted = 0
-    for item in extraction.items:
-        row = StructuredPrice(
-            raw_event_id=raw_event_id,
-            seq=seq,
-            parser_version=PARSER_VERSION,
-            supplier=extraction.supplier,
-            product_grade=item.grade,
-            size=item.size,
-            quantity_kg=item.quantity_kg,
-            price_per_kg=item.price_per_kg,
-            currency=extraction.currency,
-            total_kg=extraction.total_kg,
-            event_timestamp=event_timestamp,
-            confidence=extraction.confidence,
-            llm_raw_response=llm_raw_response,
-        )
-        session.add(row)
-        rows_inserted += 1
+    for offer in extraction.offers:
+        for item in offer.complete_items():
+            row = StructuredPrice(
+                raw_event_id=raw_event_id,
+                seq=seq,
+                parser_version=PARSER_VERSION,
+                supplier=offer.supplier,
+                product=offer.product,
+                product_grade=item.grade,
+                size=item.size,
+                quantity_kg=item.quantity_kg,
+                price_per_kg=item.price_per_kg,
+                currency=offer.currency,
+                total_kg=offer.total_kg,
+                event_timestamp=event_timestamp,
+                confidence=extraction.confidence,
+                llm_raw_response=llm_raw_response,
+            )
+            session.add(row)
+            rows_inserted += 1
 
     logger.info(
         "Inserted %d price rows for raw_event_id=%s (seq=%d)",

@@ -34,6 +34,7 @@ class StructuredPrice(Base):
     seq: Mapped[int] = mapped_column(BigInteger, nullable=False)
     parser_version: Mapped[str] = mapped_column(Text, nullable=False)
     supplier: Mapped[str | None] = mapped_column(Text, nullable=True)
+    product: Mapped[str | None] = mapped_column(Text, nullable=True)
     product_grade: Mapped[str | None] = mapped_column(Text, nullable=True)
     size: Mapped[str | None] = mapped_column(Text, nullable=True)
     quantity_kg: Mapped[float | None] = mapped_column(Numeric, nullable=True)

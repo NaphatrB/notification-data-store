@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.models import RawEvent
 from app.parser.candidate_filter import is_pricing_candidate
 from app.parser.config import (
+    LLM_BACKOFF_MAX,
     LLM_ENDPOINT,
+    LLM_FALLBACK_ENDPOINT,
     LLM_MODEL,
     PARSER_APP_FILTER,
     PARSER_BATCH_SIZE,
@@ -24,11 +26,12 @@ from app.parser.config import (
     RAW_DATABASE_URL,
 )
 from app.parser.dead_letter import insert_dead_letter
-from app.parser.llm_client import call_llm
+from app.parser.llm_client import LLMUnavailableError, call_llm, check_llm_available
 from app.parser.metrics import (
     batch_latency,
     dead_letter_total,
     failed_total,
+    llm_available,
     oldest_unprocessed,
     processed_total,
     start_metrics_server,
@@ -75,11 +78,11 @@ def _process_event(session: Session, event: RawEvent) -> bool:
 
     logger.info("Processing pricing candidate seq=%d", event.seq)
 
-    # Call LLM (first attempt)
+    # Call LLM — LLMUnavailableError will propagate up (no dead-letter)
     llm_response = call_llm(event.title, event.text, event.big_text)
 
     if llm_response is None:
-        # Retry once
+        # Response error (bad JSON, HTTP 5xx, etc.) — retry once
         logger.warning("LLM failed for seq=%d, retrying...", event.seq)
         llm_response = call_llm(event.title, event.text, event.big_text)
 
@@ -137,14 +140,26 @@ def _process_event(session: Session, event: RawEvent) -> bool:
             failed_total.inc()
             return True
 
-    # Optional: check total_kg consistency
-    if not extraction.check_total_kg_consistency():
-        logger.warning(
-            "total_kg inconsistency for seq=%d (total_kg=%.2f, items_sum=%.2f)",
+    # Skip if LLM returned no actionable pricing data
+    if not extraction.has_actionable_data():
+        logger.info(
+            "No actionable pricing data for seq=%d (confidence=%.2f). Skipping.",
             event.seq,
-            extraction.total_kg,
-            sum(item.quantity_kg for item in extraction.items),
+            extraction.confidence,
         )
+        processed_total.inc()
+        return True
+
+    # Optional: check total_kg consistency per offer
+    for i, offer in enumerate(extraction.offers):
+        if not offer.check_total_kg_consistency():
+            logger.warning(
+                "total_kg inconsistency for seq=%d offer #%d (total_kg=%.2f, items_sum=%.2f)",
+                event.seq,
+                i + 1,
+                offer.total_kg,
+                sum(item.quantity_kg for item in offer.items if item.quantity_kg),
+            )
 
     # Persist extraction
     persist_extraction(
@@ -180,7 +195,7 @@ def run(reset_offset_flag: bool = False) -> None:
 
     logger.info("Parser '%s' (version=%s) starting", PARSER_NAME, PARSER_VERSION)
     logger.info("DB: %s", sync_url.split("@")[-1])  # Log host only, not credentials
-    logger.info("LLM: %s (model=%s)", LLM_ENDPOINT, LLM_MODEL)
+    logger.info("LLM primary: %s | fallback: %s (model=%s)", LLM_ENDPOINT, LLM_FALLBACK_ENDPOINT or "(none)", LLM_MODEL)
     logger.info("Batch size: %d, poll interval: %ds", PARSER_BATCH_SIZE, POLL_INTERVAL_SECONDS)
     logger.info(
         "Filters — source: %s, package: %s, app: %s, text_heuristic: %s",
@@ -193,6 +208,9 @@ def run(reset_offset_flag: bool = False) -> None:
     # Start Prometheus metrics server
     start_metrics_server()
 
+    # Backoff state for LLM unavailability
+    backoff_seconds = POLL_INTERVAL_SECONDS
+
     with SessionFactory() as session:
         # Handle offset reset
         if reset_offset_flag:
@@ -202,6 +220,24 @@ def run(reset_offset_flag: bool = False) -> None:
         # Main polling loop
         while True:
             try:
+                # Quick health check before doing any work
+                reachable_endpoint = check_llm_available()
+                if not reachable_endpoint:
+                    llm_available.set(0)
+                    logger.warning(
+                        "All LLM endpoints unreachable. Sleeping %ds...",
+                        backoff_seconds,
+                    )
+                    time.sleep(backoff_seconds)
+                    backoff_seconds = min(backoff_seconds * 2, LLM_BACKOFF_MAX)
+                    continue
+
+                # At least one LLM is reachable — reset backoff
+                llm_available.set(1)
+                if backoff_seconds > POLL_INTERVAL_SECONDS:
+                    logger.info("LLM is back online (%s). Resuming.", reachable_endpoint)
+                backoff_seconds = POLL_INTERVAL_SECONDS
+
                 current_seq = get_current_offset(session, PARSER_NAME)
                 logger.info("Polling from seq > %d", current_seq)
 
@@ -250,7 +286,18 @@ def run(reset_offset_flag: bool = False) -> None:
                 max_seq = current_seq
 
                 for event in events:
-                    success = _process_event(session, event)
+                    try:
+                        success = _process_event(session, event)
+                    except LLMUnavailableError:
+                        # LLM went down mid-batch — roll back and back off
+                        logger.warning(
+                            "LLM became unavailable during seq=%d. "
+                            "Rolling back batch; will retry later.",
+                            event.seq,
+                        )
+                        session.rollback()
+                        llm_available.set(0)
+                        raise
                     if not success:
                         # DB failure — don't advance offset, break and retry
                         logger.error("Processing failed for seq=%d, will retry batch", event.seq)
@@ -270,6 +317,16 @@ def run(reset_offset_flag: bool = False) -> None:
                     )
 
                 _update_oldest_unprocessed_metric(session, max_seq)
+
+            except LLMUnavailableError:
+                # Exponential backoff — don't spam a sleeping machine
+                logger.warning(
+                    "LLM at %s unavailable. Backing off %ds...",
+                    LLM_ENDPOINT,
+                    backoff_seconds,
+                )
+                time.sleep(backoff_seconds)
+                backoff_seconds = min(backoff_seconds * 2, LLM_BACKOFF_MAX)
 
             except Exception:
                 logger.exception("Unexpected error in polling loop. Sleeping and retrying...")

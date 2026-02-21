@@ -30,7 +30,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db
       RAW_DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db
-      LLM_ENDPOINT: http://llm.buffalo-cliff.ts.net:11434
+      LLM_ENDPOINT: http://bigpc.buffalo-cliff.ts.net:11434
       PARSER_BATCH_SIZE: "10"
       PARSER_NAME: pricing_v1
       POLL_INTERVAL_SECONDS: "30"

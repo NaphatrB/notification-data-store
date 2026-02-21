@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Parser Dashboard — ANLA Admin{% endblock %}
+
+{% block content %}
+<div class="container-wide" style="max-width:1280px; margin:0 auto;">
+<h1>Parser Dashboard</h1>
+
+<!-- Stats Cards -->
+<div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px;">
+  <div class="stat-card">
+    <div class="stat-label">Parser Offset</div>
+    <div class="stat-value">{{ offset_seq }}</div>
+    <div class="stat-sub">last updated {{ offset_updated }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Raw Events</div>
+    <div class="stat-value">{{ total_raw }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Parsed</div>
+    <div class="stat-value" style="color:#27ae60;">{{ total_parsed }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Dead Letters</div>
+    <div class="stat-value" style="color:#e74c3c;">{{ total_dead }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Unparsed</div>
+    <div class="stat-value" style="color:#f39c12;">{{ total_raw - total_parsed_events - total_dead_events }}</div>
+    <div class="stat-sub">raw events without output</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Price Rows</div>
+    <div class="stat-value">{{ total_price_rows }}</div>
+    <div class="stat-sub">across {{ total_parsed_events }} events</div>
+  </div>
+</div>
+
+<!-- Parser Versions -->
+{% if versions %}
+<h2>By Parser Version</h2>
+<table class="data-table" style="margin-bottom:24px; max-width:500px;">
+  <thead>
+    <tr><th>Version</th><th>Price Rows</th><th>Events</th></tr>
+  </thead>
+  <tbody>
+    {% for v in versions %}
+    <tr>
+      <td><code>{{ v.version }}</code></td>
+      <td>{{ v.rows }}</td>
+      <td>{{ v.events }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- Recent Activity -->
+<h2>Recent Parsed (last 20)</h2>
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Seq</th>
+      <th>Supplier</th>
+      <th>Items</th>
+      <th>Confidence</th>
+      <th>LLM Duration</th>
+      <th>Tokens (in/out)</th>
+      <th>Model</th>
+      <th>Parsed At</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in recent_parsed %}
+    <tr>
+      <td>{{ r.seq }}</td>
+      <td>{{ r.supplier or '—' }}</td>
+      <td>{{ r.item_count }}</td>
+      <td>{{ '%.0f%%' | format((r.confidence or 0) * 100) }}</td>
+      <td>{{ r.llm_duration or '—' }}</td>
+      <td>{{ r.llm_tokens or '—' }}</td>
+      <td>{{ r.llm_model or '—' }}</td>
+      <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '—' }}</td>
+    </tr>
+    {% endfor %}
+    {% if not recent_parsed %}
+    <tr><td colspan="8" style="text-align:center; color:#888;">No parsed data yet</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<!-- Recent Dead Letters -->
+<h2>Recent Dead Letters (last 20)</h2>
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Seq</th>
+      <th>Error Type</th>
+      <th>Error Message</th>
+      <th>LLM Duration</th>
+      <th>Created At</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in recent_dead %}
+    <tr>
+      <td>{{ d.seq }}</td>
+      <td><code>{{ d.error_type }}</code></td>
+      <td style="max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.error_message[:120] }}</td>
+      <td>{{ d.llm_duration or '—' }}</td>
+      <td>{{ d.created_at.strftime('%Y-%m-%d %H:%M') if d.created_at else '—' }}</td>
+    </tr>
+    {% endfor %}
+    {% if not recent_dead %}
+    <tr><td colspan="5" style="text-align:center; color:#888;">No dead letters</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+
+</div>
+
+<style>
+  .stat-card {
+    background: var(--surface, #1e1e1e);
+    border: 1px solid var(--border, #333);
+    border-radius: 8px;
+    padding: 16px 24px;
+    min-width: 140px;
+    text-align: center;
+  }
+  .stat-label { font-size: 0.85rem; color: #888; margin-bottom: 4px; }
+  .stat-value { font-size: 1.8rem; font-weight: 700; }
+  .stat-sub { font-size: 0.75rem; color: #666; margin-top: 4px; }
+</style>
+{% endblock %}

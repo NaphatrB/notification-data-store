@@ -10,6 +10,13 @@ RAW_DATABASE_URL: str = os.environ.get(
 
 LLM_ENDPOINT: str = os.environ.get(
     "LLM_ENDPOINT",
+    "http://bigpc.buffalo-cliff.ts.net:11434",
+)
+
+# Fallback LLM endpoint — always-on CPU host, slower but reliable.
+# Used automatically when the primary endpoint is unreachable.
+LLM_FALLBACK_ENDPOINT: str = os.environ.get(
+    "LLM_FALLBACK_ENDPOINT",
     "http://llm.buffalo-cliff.ts.net:11434",
 )
 
@@ -19,8 +26,18 @@ PARSER_NAME: str = os.environ.get("PARSER_NAME", "pricing_v1")
 
 POLL_INTERVAL_SECONDS: int = int(os.environ.get("POLL_INTERVAL_SECONDS", "30"))
 
+# Timeout for establishing TCP connection to LLM host (seconds).
+# Keep short so we detect a sleeping / offline host quickly.
+LLM_CONNECT_TIMEOUT: float = float(os.environ.get("LLM_CONNECT_TIMEOUT", "10"))
+
+# Read timeout for the actual LLM generation (seconds).
+LLM_READ_TIMEOUT: float = float(os.environ.get("LLM_READ_TIMEOUT", "600"))
+
+# Maximum backoff interval (seconds) when LLM is unavailable.
+LLM_BACKOFF_MAX: int = int(os.environ.get("LLM_BACKOFF_MAX", "300"))
+
 # Versioned parser identifier — bump when prompt changes
-PARSER_VERSION: str = "pricing_v1_prompt1"
+PARSER_VERSION: str = "pricing_v3_textprio"
 
 # LLM model name for Ollama
 LLM_MODEL: str = os.environ.get("LLM_MODEL", "qwen3:8b")

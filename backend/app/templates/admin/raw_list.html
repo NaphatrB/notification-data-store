@@ -8,6 +8,11 @@
 
 <form id="raw-filters" class="filter-bar">
   <div class="filter-group">
+    <label for="q">Search</label>
+    <input type="text" name="q" id="q" placeholder="title, text, big_text…" style="min-width:180px;">
+  </div>
+
+  <div class="filter-group">
     <label for="deviceId">Device</label>
     <select name="deviceId" id="deviceId">
       <option value="">All devices</option>
@@ -28,13 +33,23 @@
   </div>
 
   <div class="filter-group">
+    <label for="status">Status</label>
+    <select name="status" id="status">
+      <option value="">All</option>
+      <option value="parsed">Parsed</option>
+      <option value="dead_letter">Dead Letter</option>
+      <option value="unparsed">Unparsed</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
     <label for="from">From</label>
-    <input type="date" name="from" id="from">
+    <input type="datetime-local" name="from" id="from">
   </div>
 
   <div class="filter-group">
     <label for="to">To</label>
-    <input type="date" name="to" id="to">
+    <input type="datetime-local" name="to" id="to">
   </div>
 
   <div class="filter-group">
@@ -61,6 +76,13 @@
     </button>
   </div>
 
+  <div class="filter-group">
+    <label>&nbsp;</label>
+    <a id="raw-export-btn" href="/admin/raw/export" class="btn btn-green" style="text-decoration:none;">
+      ⬇ CSV
+    </a>
+  </div>
+
   <span class="htmx-indicator">Loading…</span>
 </form>
 
@@ -71,4 +93,20 @@
      hx-indicator=".htmx-indicator">
 </div>
 </div>
+
+<script>
+// Keep CSV export link in sync with filter values
+document.getElementById('raw-export-btn').addEventListener('click', function(e) {
+  e.preventDefault();
+  var form = document.getElementById('raw-filters');
+  var params = new URLSearchParams();
+  form.querySelectorAll('select, input').forEach(function(el) {
+    if (el.name && el.value && el.name !== 'offset' && el.name !== 'limit') {
+      params.set(el.name, el.value);
+    }
+  });
+  var qs = params.toString();
+  window.location.href = '/admin/raw/export' + (qs ? '?' + qs : '');
+});
+</script>
 {% endblock %}

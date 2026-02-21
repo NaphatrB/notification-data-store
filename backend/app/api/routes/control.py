@@ -14,6 +14,7 @@ from app.api.auth import require_admin, require_device_token
 from app.api.schemas import (
     DeviceApproveResponse,
     DeviceConfigResponse,
+    DeviceDeleteResponse,
     DeviceListItem,
     DeviceListResponse,
     DeviceRegisterRequest,
@@ -26,6 +27,7 @@ from app.api.services import (
     DeviceNotFoundError,
     DeviceStateError,
     approve_device_svc,
+    delete_device_svc,
     get_device_svc,
     list_devices_svc,
     reinstate_device_svc,
@@ -318,4 +320,32 @@ async def reinstate_device(
         deviceId=device.id,
         status=device.status,
         requiresToken=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 4.9  Delete Device (Admin Only)
+# ---------------------------------------------------------------------------
+
+
+@router.delete(
+    "/devices/{device_id}",
+    response_model=DeviceDeleteResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def delete_device(
+    device_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> DeviceDeleteResponse:
+    """Permanently delete a revoked device."""
+    try:
+        result = await delete_device_svc(db, device_id)
+    except DeviceNotFoundError:
+        raise HTTPException(status_code=404, detail="Device not found")
+    except DeviceStateError as e:
+        raise HTTPException(status_code=409, detail=e.detail)
+
+    return DeviceDeleteResponse(
+        deviceId=result["deviceId"],
+        deleted=True,
     )
