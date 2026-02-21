@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
@@ -18,6 +20,8 @@ from app.api.schemas import (
     NotificationEventIn,
     StatsResponse,
 )
+
+logger = logging.getLogger("events_api")
 
 router = APIRouter(prefix="/api/v1", tags=["events"])
 
@@ -49,13 +53,17 @@ async def ingest_event(
     try:
         db.add(row)
         await db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         await db.rollback()
-        # Duplicate message_hash — idempotent accept
-        return JSONResponse(
-            status_code=200,
-            content={"status": "accepted", "duplicate": True},
-        )
+        constraint = getattr(exc.orig, "constraint_name", "") or ""
+        if "message_hash" in constraint or "uq_raw_events_message_hash" in str(exc):
+            # Duplicate message_hash — idempotent accept
+            return JSONResponse(
+                status_code=200,
+                content={"status": "accepted", "duplicate": True},
+            )
+        logger.error("Unexpected IntegrityError during event ingest: %s", exc)
+        raise HTTPException(status_code=500, detail="Internal error during event ingest")
 
     return JSONResponse(
         status_code=201,

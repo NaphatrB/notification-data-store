@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Index, Integer, Text, func
+from sqlalchemy import BigInteger, Boolean, ForeignKey, Index, Integer, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -21,6 +21,7 @@ class RawEvent(Base):
         BigInteger,
         unique=True,
         nullable=False,
+        server_default=text("nextval('raw_events_seq_seq')"),
     )
     message_hash: Mapped[str | None] = mapped_column(
         Text, unique=True, nullable=True
