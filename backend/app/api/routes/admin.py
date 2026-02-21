@@ -5,17 +5,22 @@ Authentication via signed session cookie (itsdangerous).
 """
 
 import logging
-import os
 from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from itsdangerous import BadSignature, URLSafeTimedSerializer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.admin_auth import (
+    SESSION_COOKIE,
+    SESSION_MAX_AGE,
+    get_session_user,
+    require_session,
+    serializer,
+)
 from app.api.auth import ADMIN_TOKEN, _constant_time_compare
 from app.api.services import (
     DeviceNotFoundError,
@@ -36,36 +41,6 @@ router = APIRouter(prefix="/admin", tags=["admin-ui"])
 
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent.parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
-
-# Session cookie config
-SESSION_COOKIE = "anla_session"
-SESSION_MAX_AGE = 86400  # 24 hours
-SECRET_KEY = os.environ.get("SESSION_SECRET", ADMIN_TOKEN or "fallback-secret-key")
-serializer = URLSafeTimedSerializer(SECRET_KEY)
-
-
-# ---------------------------------------------------------------------------
-# Session helpers
-# ---------------------------------------------------------------------------
-
-
-def _get_session_user(request: Request) -> str | None:
-    """Extract and validate session cookie. Returns 'admin' or None."""
-    cookie = request.cookies.get(SESSION_COOKIE)
-    if cookie is None:
-        return None
-    try:
-        data = serializer.loads(cookie, max_age=SESSION_MAX_AGE)
-        if data.get("role") == "admin":
-            return "admin"
-    except (BadSignature, Exception):
-        pass
-    return None
-
-
-def _require_session(request: Request) -> str | None:
-    """Check session; return user or None (caller redirects)."""
-    return _get_session_user(request)
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +104,7 @@ async def devices_page(
     db: AsyncSession = Depends(get_db),
 ):
     """Render device list page."""
-    user = _require_session(request)
+    user = require_session(request)
     if user is None:
         return RedirectResponse(url="/admin/login", status_code=303)
 
@@ -158,7 +133,7 @@ async def device_detail_page(
     db: AsyncSession = Depends(get_db),
 ):
     """Render device detail page."""
-    user = _require_session(request)
+    user = require_session(request)
     if user is None:
         return RedirectResponse(url="/admin/login", status_code=303)
 
@@ -207,7 +182,7 @@ async def approve_action(
     db: AsyncSession = Depends(get_db),
 ):
     """Approve device, show token reveal page."""
-    user = _require_session(request)
+    user = require_session(request)
     if user is None:
         return RedirectResponse(url="/admin/login", status_code=303)
 
@@ -251,7 +226,7 @@ async def revoke_action(
     db: AsyncSession = Depends(get_db),
 ):
     """Revoke device, redirect back to detail."""
-    user = _require_session(request)
+    user = require_session(request)
     if user is None:
         return RedirectResponse(url="/admin/login", status_code=303)
 
@@ -286,7 +261,7 @@ async def rotate_token_action(
     db: AsyncSession = Depends(get_db),
 ):
     """Rotate token, show token reveal page."""
-    user = _require_session(request)
+    user = require_session(request)
     if user is None:
         return RedirectResponse(url="/admin/login", status_code=303)
 
@@ -330,7 +305,7 @@ async def reinstate_action(
     db: AsyncSession = Depends(get_db),
 ):
     """Reinstate a revoked device, redirect back to detail."""
-    user = _require_session(request)
+    user = require_session(request)
     if user is None:
         return RedirectResponse(url="/admin/login", status_code=303)
 

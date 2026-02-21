@@ -1,0 +1,70 @@
+{# HTMX partial — no extends, rendered inside #raw-table container #}
+
+{% if events %}
+<table>
+  <thead>
+    <tr>
+      <th>Seq</th>
+      <th>Device</th>
+      <th>Source</th>
+      <th>App</th>
+      <th>Title</th>
+      <th>Event Time</th>
+      <th>Received</th>
+      <th>Status</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in events %}
+    <tr>
+      <td>{{ e.seq }}</td>
+      <td style="font-family: monospace; font-size: 0.75rem;">
+        {% if e.device_id %}{{ e.device_id | string | truncate(8, True, '') }}{% else %}—{% endif %}
+      </td>
+      <td>{{ e.source_type }}</td>
+      <td>{{ e.app_name or '—' }}</td>
+      <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        {{ e.title or '—' }}
+      </td>
+      <td>{{ e.event_timestamp.strftime('%Y-%m-%d %H:%M') if e.event_timestamp else '—' }}</td>
+      <td>{{ e.received_at.strftime('%Y-%m-%d %H:%M') if e.received_at else '—' }}</td>
+      <td>
+        <span class="badge badge-{{ e.parse_status }}">{{ e.parse_status }}</span>
+      </td>
+      <td>
+        <a href="/admin/raw/{{ e.id }}" class="btn btn-primary btn-sm">View</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div style="padding: 2rem; text-align: center; color: var(--text-dim); background: var(--surface); border-radius: 8px;">
+  No raw events found.
+</div>
+{% endif %}
+
+{# Pagination #}
+<div class="pagination">
+  <span>
+    {% if total > 0 %}Showing {{ offset + 1 }}–{{ [offset + limit, total] | min }} of {{ total }}{% else %}No results{% endif %}
+  </span>
+  <div class="page-btns">
+    {% set prev_offset = [offset - limit, 0] | max %}
+    <button
+      {% if offset <= 0 %}disabled{% endif %}
+      hx-get="/admin/raw/table?offset={{ prev_offset }}{% for k, v in params.items() %}&{{ k }}={{ v }}{% endfor %}"
+      hx-target="#raw-table">
+      ← Prev
+    </button>
+
+    {% set next_offset = offset + limit %}
+    <button
+      {% if next_offset >= total %}disabled{% endif %}
+      hx-get="/admin/raw/table?offset={{ next_offset }}{% for k, v in params.items() %}&{{ k }}={{ v }}{% endfor %}"
+      hx-target="#raw-table">
+      Next →
+    </button>
+  </div>
+</div>

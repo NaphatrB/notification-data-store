@@ -1,8 +1,12 @@
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.db import async_session
 from app.api.routes.admin import router as admin_router
+from app.api.routes.admin_data import router as admin_data_router
 from app.api.routes.control import router as control_router
 from app.api.routes.events import router as events_router
 from app.api.routes.pricing import router as pricing_router
@@ -15,12 +19,17 @@ logger = logging.getLogger("anla")
 app = FastAPI(
     title="ANLA Notification Data Store",
     description="Ingestion & Control Plane backend for ANLA.",
-    version="0.5.0",
+    version="0.6.0",
 )
+
+# Static files
+_static_dir = Path(__file__).resolve().parent.parent / "static"
+app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 app.include_router(events_router)
 app.include_router(control_router)
 app.include_router(admin_router)
+app.include_router(admin_data_router)
 app.include_router(pricing_router)
 
 

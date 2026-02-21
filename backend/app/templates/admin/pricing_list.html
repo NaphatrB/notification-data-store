@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing Data — ANLA Admin{% endblock %}
+
+{% block content %}
+<div class="container-wide" style="max-width:1280px; margin:0 auto;">
+<h1>Pricing Data</h1>
+
+<form id="pricing-filters" class="filter-bar">
+  <div class="filter-group">
+    <label for="supplier">Supplier</label>
+    <select name="supplier" id="supplier">
+      <option value="">All</option>
+      {% for s in suppliers %}
+      <option value="{{ s }}">{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="currency">Currency</label>
+    <select name="currency" id="currency">
+      <option value="">All</option>
+      {% for c in currencies %}
+      <option value="{{ c }}">{{ c }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="parserVersion">Parser Ver</label>
+    <select name="parserVersion" id="parserVersion">
+      <option value="">All</option>
+      {% for pv in parser_versions %}
+      <option value="{{ pv }}">{{ pv }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="minPrice">Min $/kg</label>
+    <input type="number" name="minPrice" id="minPrice" step="0.01" placeholder="—" style="width:90px;">
+  </div>
+
+  <div class="filter-group">
+    <label for="maxPrice">Max $/kg</label>
+    <input type="number" name="maxPrice" id="maxPrice" step="0.01" placeholder="—" style="width:90px;">
+  </div>
+
+  <div class="filter-group">
+    <label for="from">From</label>
+    <input type="date" name="from" id="from">
+  </div>
+
+  <div class="filter-group">
+    <label for="to">To</label>
+    <input type="date" name="to" id="to">
+  </div>
+
+  <div class="filter-group">
+    <label for="limit">Per Page</label>
+    <select name="limit" id="limit">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+      <option value="200">200</option>
+      <option value="500">500</option>
+    </select>
+  </div>
+
+  <input type="hidden" name="offset" id="pricing-offset" value="0">
+
+  <div class="filter-group">
+    <label>&nbsp;</label>
+    <button type="button" class="btn btn-primary"
+            hx-get="/admin/pricing/table"
+            hx-target="#pricing-table"
+            hx-include="#pricing-filters"
+            onclick="document.getElementById('pricing-offset').value='0'">
+      Search
+    </button>
+  </div>
+
+  <div class="filter-group">
+    <label>&nbsp;</label>
+    <a id="export-btn" href="/admin/pricing/export" class="btn btn-green" style="text-decoration:none;">
+      ⬇ CSV
+    </a>
+  </div>
+
+  <span class="htmx-indicator">Loading…</span>
+</form>
+
+<div id="pricing-table"
+     hx-get="/admin/pricing/table"
+     hx-trigger="load"
+     hx-include="#pricing-filters"
+     hx-indicator=".htmx-indicator">
+</div>
+</div>
+
+<script>
+// Keep CSV export link in sync with filter values
+document.getElementById('export-btn').addEventListener('click', function(e) {
+  e.preventDefault();
+  var form = document.getElementById('pricing-filters');
+  var params = new URLSearchParams();
+  form.querySelectorAll('select, input').forEach(function(el) {
+    if (el.name && el.value && el.name !== 'offset' && el.name !== 'limit') {
+      params.set(el.name, el.value);
+    }
+  });
+  var qs = params.toString();
+  window.location.href = '/admin/pricing/export' + (qs ? '?' + qs : '');
+});
+</script>
+{% endblock %}

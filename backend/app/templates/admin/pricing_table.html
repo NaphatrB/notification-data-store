@@ -1,0 +1,66 @@
+{# HTMX partial — no extends, rendered inside #pricing-table container #}
+
+{% if items %}
+<table>
+  <thead>
+    <tr>
+      <th>Seq</th>
+      <th>Supplier</th>
+      <th>Grade</th>
+      <th>Size</th>
+      <th>Qty (kg)</th>
+      <th>Price/kg</th>
+      <th>Currency</th>
+      <th>Total (kg)</th>
+      <th>Confidence</th>
+      <th>Parser</th>
+      <th>Event Time</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td>{{ item.seq }}</td>
+      <td>{{ item.supplier or '—' }}</td>
+      <td>{{ item.product_grade or '—' }}</td>
+      <td>{{ item.size or '—' }}</td>
+      <td>{% if item.quantity_kg is not none %}{{ '%.2f' | format(item.quantity_kg) }}{% else %}—{% endif %}</td>
+      <td>{% if item.price_per_kg is not none %}{{ '%.2f' | format(item.price_per_kg) }}{% else %}—{% endif %}</td>
+      <td>{{ item.currency or '—' }}</td>
+      <td>{% if item.total_kg is not none %}{{ '%.2f' | format(item.total_kg) }}{% else %}—{% endif %}</td>
+      <td>{% if item.confidence is not none %}{{ '%.0f' | format(item.confidence * 100) }}%{% else %}—{% endif %}</td>
+      <td>{{ item.parser_version }}</td>
+      <td>{{ item.event_timestamp.strftime('%Y-%m-%d %H:%M') if item.event_timestamp else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div style="padding: 2rem; text-align: center; color: var(--text-dim); background: var(--surface); border-radius: 8px;">
+  No pricing records found.
+</div>
+{% endif %}
+
+{# Pagination #}
+<div class="pagination">
+  <span>
+    {% if total > 0 %}Showing {{ offset + 1 }}–{{ [offset + limit, total] | min }} of {{ total }}{% else %}No results{% endif %}
+  </span>
+  <div class="page-btns">
+    {% set prev_offset = [offset - limit, 0] | max %}
+    <button
+      {% if offset <= 0 %}disabled{% endif %}
+      hx-get="/admin/pricing/table?offset={{ prev_offset }}{% for k, v in params.items() %}&{{ k }}={{ v }}{% endfor %}"
+      hx-target="#pricing-table">
+      ← Prev
+    </button>
+
+    {% set next_offset = offset + limit %}
+    <button
+      {% if next_offset >= total %}disabled{% endif %}
+      hx-get="/admin/pricing/table?offset={{ next_offset }}{% for k, v in params.items() %}&{{ k }}={{ v }}{% endfor %}"
+      hx-target="#pricing-table">
+      Next →
+    </button>
+  </div>
+</div>

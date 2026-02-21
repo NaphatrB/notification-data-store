@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Raw Events — ANLA Admin{% endblock %}
+
+{% block content %}
+<div class="container-wide" style="max-width:1280px; margin:0 auto;">
+<h1>Raw Events</h1>
+
+<form id="raw-filters" class="filter-bar">
+  <div class="filter-group">
+    <label for="deviceId">Device</label>
+    <select name="deviceId" id="deviceId">
+      <option value="">All devices</option>
+      {% for d in devices %}
+      <option value="{{ d.id }}">{{ d.device_name or d.device_uuid }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="sourceType">Source Type</label>
+    <select name="sourceType" id="sourceType">
+      <option value="">All</option>
+      {% for st in source_types %}
+      <option value="{{ st }}">{{ st }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="from">From</label>
+    <input type="date" name="from" id="from">
+  </div>
+
+  <div class="filter-group">
+    <label for="to">To</label>
+    <input type="date" name="to" id="to">
+  </div>
+
+  <div class="filter-group">
+    <label for="limit">Per Page</label>
+    <select name="limit" id="limit">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+      <option value="200">200</option>
+      <option value="500">500</option>
+    </select>
+  </div>
+
+  <input type="hidden" name="offset" id="raw-offset" value="0">
+
+  <div class="filter-group">
+    <label>&nbsp;</label>
+    <button type="button" class="btn btn-primary"
+            hx-get="/admin/raw/table"
+            hx-target="#raw-table"
+            hx-include="#raw-filters"
+            onclick="document.getElementById('raw-offset').value='0'">
+      Search
+    </button>
+  </div>
+
+  <span class="htmx-indicator">Loading…</span>
+</form>
+
+<div id="raw-table"
+     hx-get="/admin/raw/table"
+     hx-trigger="load"
+     hx-include="#raw-filters"
+     hx-indicator=".htmx-indicator">
+</div>
+</div>
+{% endblock %}

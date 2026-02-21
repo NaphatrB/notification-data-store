@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Event #{{ event.seq }} — ANLA Admin{% endblock %}
+
+{% block content %}
+<h1>Raw Event #{{ event.seq }}</h1>
+
+<div class="card">
+  <dl>
+    <dt>ID</dt>
+    <dd style="font-family: monospace; font-size: 0.8rem;">{{ event.id }}</dd>
+
+    <dt>Seq</dt>
+    <dd>{{ event.seq }}</dd>
+
+    <dt>Device ID</dt>
+    <dd style="font-family: monospace; font-size: 0.8rem;">{{ event.device_id or '—' }}</dd>
+
+    <dt>Source Type</dt>
+    <dd>{{ event.source_type }}</dd>
+
+    <dt>Package Name</dt>
+    <dd>{{ event.package_name }}</dd>
+
+    <dt>App Name</dt>
+    <dd>{{ event.app_name or '—' }}</dd>
+
+    <dt>Notification ID</dt>
+    <dd>{{ event.notification_id }}</dd>
+
+    <dt>Event Timestamp</dt>
+    <dd>{{ event.event_timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if event.event_timestamp else '—' }}</dd>
+
+    <dt>Received At</dt>
+    <dd>{{ event.received_at.strftime('%Y-%m-%d %H:%M:%S UTC') if event.received_at else '—' }}</dd>
+
+    <dt>Message Hash</dt>
+    <dd style="font-family: monospace; font-size: 0.75rem;">{{ event.message_hash or '—' }}</dd>
+
+    <dt>Parse Status</dt>
+    <dd><span class="badge badge-{{ parse_status }}">{{ parse_status }}</span></dd>
+  </dl>
+</div>
+
+<h2>Title</h2>
+<div class="card">
+  <p>{{ event.title or '(empty)' }}</p>
+</div>
+
+<h2>Text</h2>
+<div class="card">
+  <pre class="code-block">{{ event.text or '(empty)' }}</pre>
+</div>
+
+{% if event.big_text %}
+<h2>Big Text</h2>
+<div class="card">
+  <pre class="code-block">{{ event.big_text }}</pre>
+</div>
+{% endif %}
+
+<p class="mt-2"><a href="/admin/raw" style="color: var(--accent); font-size: 0.85rem;">← Back to raw events</a></p>
+{% endblock %}
