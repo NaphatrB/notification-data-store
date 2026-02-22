@@ -32,6 +32,7 @@ from app.api.services import (
     reinstate_device_svc,
     revoke_device_svc,
     rotate_token_svc,
+    update_device_config_svc,
 )
 from app.db import get_db
 from app.models import DeviceToken
@@ -325,6 +326,37 @@ async def reinstate_action(
 
     return RedirectResponse(
         url=f"/admin/devices/{device_id}?success=Device+reinstated.+Issue+a+new+token+to+restore+ingestion.",
+        status_code=303,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Update Config Action
+# ---------------------------------------------------------------------------
+
+
+@router.post("/devices/{device_id}/config")
+async def update_config_action(
+    request: Request,
+    device_id: UUID,
+    capture_mode: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update device configuration, redirect back to detail."""
+    user = require_session(request)
+    if user is None:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    try:
+        await update_device_config_svc(db, device_id, capture_mode=capture_mode)
+    except DeviceNotFoundError:
+        return RedirectResponse(
+            url=f"/admin/devices/{device_id}?error=Device+not+found",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/admin/devices/{device_id}?success=Configuration+updated",
         status_code=303,
     )
 

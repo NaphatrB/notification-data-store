@@ -15,10 +15,13 @@ services:
 
   api:
     image: registry.buffalo-cliff.ts.net/anla-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db
       ADMIN_TOKEN: ${ADMIN_TOKEN:-changeme}
-      INGESTION_PUBLIC_BASE_URL: ${INGESTION_PUBLIC_BASE_URL:-https://envy.buffalo-cliff.ts.net}
+      INGESTION_PUBLIC_BASE_URL: ${INGESTION_PUBLIC_BASE_URL:-https://anla-api.buffalo-cliff.ts.net}
     ports:
       - "8000:8000"
     depends_on:
@@ -27,6 +30,9 @@ services:
 
   parser:
     image: registry.buffalo-cliff.ts.net/anla-parser:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.parser
     environment:
       DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db
       RAW_DATABASE_URL: postgresql+asyncpg://anla:anla@db:5432/anla_db

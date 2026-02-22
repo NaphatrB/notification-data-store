@@ -45,6 +45,33 @@
   </dl>
 </div>
 
+<h2>Device Configuration</h2>
+<div class="card">
+  {% if d.device.config %}
+  <form method="POST" action="/admin/devices/{{ d.device.id }}/config">
+    <dl>
+      <dt>Capture Mode</dt>
+      <dd>
+        <select name="capture_mode" style="padding: 0.3rem; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px;">
+          <option value="WHATSAPP_ONLY" {% if d.device.config.capture_mode == 'WHATSAPP_ONLY' %}selected{% endif %}>WHATSAPP_ONLY</option>
+          <option value="ALL" {% if d.device.config.capture_mode == 'ALL' %}selected{% endif %}>ALL</option>
+          <option value="" {% if d.device.config.capture_mode == '' %}selected{% endif %}>NONE (Disabled)</option>
+        </select>
+        <p class="text-dim" style="font-size: 0.8rem; margin-top: 0.2rem;">
+          Determines which notifications the device should capture and upload.
+        </p>
+      </dd>
+
+      <dt>Last Config Update</dt>
+      <dd>{{ d.device.config.updated_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</dd>
+    </dl>
+    <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Update Configuration</button>
+  </form>
+  {% else %}
+  <p class="text-dim">Configuration not available for this device (not yet approved or legacy).</p>
+  {% endif %}
+</div>
+
 <div class="actions">
   {% if d.device.status == 'pending' %}
   <form method="POST" action="/admin/devices/{{ d.device.id }}/approve">

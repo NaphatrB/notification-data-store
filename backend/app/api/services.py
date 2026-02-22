@@ -115,8 +115,11 @@ async def get_device_svc(db: AsyncSession, device_id: UUID) -> DeviceWithStats:
     event_count = func.count(RawEvent.id).label("total_events")
     last_event = func.max(RawEvent.event_timestamp).label("last_event_at")
 
+    from sqlalchemy.orm import selectinload
+
     stmt = (
         select(Device, event_count, last_event)
+        .options(selectinload(Device.config))
         .outerjoin(RawEvent, RawEvent.device_id == Device.id)
         .where(Device.id == device_id)
         .group_by(Device.id)
@@ -166,7 +169,7 @@ async def approve_device_svc(db: AsyncSession, device_id: UUID) -> ApproveResult
     config = DeviceConfig(
         device_id=device.id,
         api_base_url=INGESTION_PUBLIC_BASE_URL or None,
-        capture_mode="",
+        capture_mode="WHATSAPP_ONLY",
         poll_interval_seconds=300,
         parser_enabled=True,
     )
@@ -194,6 +197,39 @@ async def approve_device_svc(db: AsyncSession, device_id: UUID) -> ApproveResult
     await db.commit()
 
     return ApproveResult(device=device, plaintext_token=plaintext)
+
+
+async def update_device_config_svc(
+    db: AsyncSession,
+    device_id: UUID,
+    capture_mode: str,
+) -> DeviceConfig:
+    """Update device configuration."""
+    stmt = select(DeviceConfig).where(DeviceConfig.device_id == device_id)
+    result = await db.execute(stmt)
+    config = result.scalar_one_or_none()
+
+    if config is None:
+        raise DeviceNotFoundError()
+
+    old_mode = config.capture_mode
+    config.capture_mode = capture_mode
+    config.updated_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    logger.info("Device config updated: id=%s capture_mode=%s", device_id, capture_mode)
+
+    await log_audit(
+        db,
+        actor="admin",
+        action="device_config_updated",
+        target_type="device",
+        target_id=device_id,
+        metadata={"old_capture_mode": old_mode, "new_capture_mode": capture_mode},
+    )
+    await db.commit()
+
+    return config
 
 
 async def revoke_device_svc(db: AsyncSession, device_id: UUID) -> Device:
