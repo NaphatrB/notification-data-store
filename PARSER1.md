@@ -290,7 +290,7 @@ Environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `RAW_DATABASE_URL` | required | PostgreSQL connection string |
-| `LLM_ENDPOINT` | `https://llm.buffalo-cliff.ts.net` | Ollama HTTP endpoint |
+| `LLM_ENDPOINT` | `https://bigpc.buffalo-cliff.ts.net` | Ollama HTTP endpoint |
 | `PARSER_BATCH_SIZE` | `10` | Events per batch |
 | `PARSER_NAME` | `pricing_v1` | Parser identifier |
 | `POLL_INTERVAL_SECONDS` | `30` | Sleep between poll cycles |
@@ -366,7 +366,7 @@ Docker Compose: three services (db, api, parser) — same image, different CMD.
 | Database | Same Postgres instance | One platform, not microservices |
 | Alembic | Extend existing migration chain | Single source of truth |
 | FK constraint | Soft reference only (no FK) | Loose coupling, no cross-schema locking |
-| LLM | Ollama `/api/generate`, Qwen3 8B | Local, deterministic, hosted at `https://llm.buffalo-cliff.ts.net` |
+| LLM | Ollama `/api/generate`, Qwen3 8B | Local, deterministic, hosted at `https://bigpc.buffalo-cliff.ts.net` |
 | Context window | ~2k tokens sufficient | WhatsApp pricing messages are short |
 | Deployment | Same docker-compose, separate container | Orchestration simplicity |
 | Replay strategy | Delete + re-insert | Parser logic may improve, deterministic rebuild |

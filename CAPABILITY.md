@@ -148,7 +148,7 @@ All via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LLM_ENDPOINT` | `http://llm.buffalo-cliff.ts.net:11434` | Ollama API base URL |
+| `LLM_ENDPOINT` | `http://bigpc.buffalo-cliff.ts.net:11434` | Ollama API base URL |
 | `LLM_MODEL` | `qwen3:8b` | Ollama model name |
 | `PARSER_BATCH_SIZE` | `10` | Events per polling batch |
 | `POLL_INTERVAL_SECONDS` | `30` | Sleep between polls when idle |
