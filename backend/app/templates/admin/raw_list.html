@@ -33,6 +33,16 @@
   </div>
 
   <div class="filter-group">
+    <label for="appName">App</label>
+    <select name="appName" id="appName">
+      <option value="">All</option>
+      {% for app in apps %}
+      <option value="{{ app }}">{{ app }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-group">
     <label for="status">Status</label>
     <select name="status" id="status">
       <option value="">All</option>

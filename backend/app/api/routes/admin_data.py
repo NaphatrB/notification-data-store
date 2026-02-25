@@ -76,12 +76,21 @@ async def raw_list_page(
     )
     source_types = [r[0] for r in st_result.all()]
 
+    # Fetch distinct app names for dropdown
+    app_result = await db.execute(
+        select(distinct(RawEvent.app_name))
+        .where(RawEvent.app_name.is_not(None))
+        .order_by(RawEvent.app_name)
+    )
+    apps = [r[0] for r in app_result.all()]
+
     return templates.TemplateResponse(
         "admin/raw_list.html",
         {
             "request": request,
             "devices": devices,
             "source_types": source_types,
+            "apps": apps,
         },
     )
 
@@ -97,6 +106,7 @@ async def raw_table(
     db: AsyncSession = Depends(get_db),
     deviceId: str | None = Query(None),
     sourceType: str | None = Query(None),
+    appName: str | None = Query(None),
     status: str | None = Query(None),
     q: str | None = Query(None),
     from_: str | None = Query(None, alias="from"),
@@ -153,6 +163,10 @@ async def raw_table(
     if sourceType:
         stmt = stmt.where(RawEvent.source_type == sourceType)
         count_stmt = count_stmt.where(RawEvent.source_type == sourceType)
+
+    if appName:
+        stmt = stmt.where(RawEvent.app_name == appName)
+        count_stmt = count_stmt.where(RawEvent.app_name == appName)
 
     if q:
         pattern = f"%{q}%"
@@ -237,6 +251,8 @@ async def raw_table(
         params["deviceId"] = deviceId
     if sourceType:
         params["sourceType"] = sourceType
+    if appName:
+        params["appName"] = appName
     if q:
         params["q"] = q
     if status:
@@ -271,6 +287,7 @@ async def raw_export(
     db: AsyncSession = Depends(get_db),
     deviceId: str | None = Query(None),
     sourceType: str | None = Query(None),
+    appName: str | None = Query(None),
     q: str | None = Query(None),
     from_: str | None = Query(None, alias="from"),
     to: str | None = Query(None),
@@ -306,6 +323,8 @@ async def raw_export(
             pass
     if sourceType:
         stmt = stmt.where(RawEvent.source_type == sourceType)
+    if appName:
+        stmt = stmt.where(RawEvent.app_name == appName)
     if q:
         pattern = f"%{q}%"
         stmt = stmt.where(or_(
