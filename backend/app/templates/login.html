@@ -21,6 +21,15 @@
       </div>
       <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.5rem;">Log In</button>
     </form>
+
+    {% if oidc_enabled %}
+    <div style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.5rem; text-align: center;">
+      <p class="text-dim text-sm mb-3">Or use corporate login</p>
+      <a href="/admin/login/oidc" class="btn" style="width: 100%; display: block; background: #007bff; color: white; text-decoration: none; padding: 0.5rem; border-radius: 4px;">
+        Login with Synology SSO
+      </a>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

@@ -5,6 +5,7 @@ Authentication via signed session cookie (itsdangerous).
 """
 
 import logging
+import os
 from pathlib import Path
 from uuid import UUID
 
@@ -36,6 +37,7 @@ from app.api.services import (
 )
 from app.db import get_db
 from app.models import DeviceToken
+from app.api.oidc import oauth, is_oidc_enabled
 
 logger = logging.getLogger("admin_ui")
 
@@ -53,7 +55,50 @@ templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     """Render login form."""
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "error": None,
+        "oidc_enabled": is_oidc_enabled()
+    })
+
+
+@router.get("/login/oidc")
+async def oidc_login(request: Request):
+    """Start OIDC flow."""
+    if not is_oidc_enabled():
+        return RedirectResponse(url="/admin/login?error=OIDC+not+configured")
+    
+    # redirect_uri must match the one configured in Synology SSO
+    redirect_uri = request.url_for('oidc_auth_callback')
+    # If app is behind proxy, might need to force https
+    if os.environ.get("OIDC_FORCE_HTTPS") == "true":
+         redirect_uri = str(redirect_uri).replace("http://", "https://")
+
+    return await oauth.synology.authorize_redirect(request, str(redirect_uri))
+
+
+@router.get("/auth/callback", name="oidc_auth_callback")
+async def oidc_auth_callback(request: Request):
+    """OIDC callback handling."""
+    if not is_oidc_enabled():
+         return RedirectResponse(url="/admin/login?error=OIDC+not+configured")
+    
+    try:
+        token = await oauth.synology.authorize_access_token(request)
+        userinfo = token.get('userinfo')
+        if not userinfo:
+             # fallback if userinfo not in token
+             userinfo = await oauth.synology.userinfo(token=token)
+             
+        if userinfo:
+            logger.info("OIDC user logged in: %s", userinfo.get('email'))
+            request.session['user'] = userinfo.get('email') or userinfo.get('sub')
+            return RedirectResponse(url="/admin/devices")
+        else:
+            return RedirectResponse(url="/admin/login?error=Could+not+retrieve+user+info")
+    except Exception as e:
+        logger.error("OIDC auth error: %s", str(e))
+        return RedirectResponse(url=f"/admin/login?error=OIDC+Auth+Error:+{str(e)}")
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -62,14 +107,14 @@ async def login_submit(request: Request, token: str = Form(...)):
     if ADMIN_TOKEN is None:
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Admin auth not configured on server."},
+            {"request": request, "error": "Admin auth not configured on server.", "oidc_enabled": is_oidc_enabled()},
         )
 
     if not _constant_time_compare(token, ADMIN_TOKEN):
         logger.warning("Failed admin login attempt from UI")
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Invalid admin token."},
+            {"request": request, "error": "Invalid admin token.", "oidc_enabled": is_oidc_enabled()},
         )
 
     # Create signed session cookie
@@ -88,10 +133,12 @@ async def login_submit(request: Request, token: str = Form(...)):
 
 
 @router.get("/logout")
-async def logout():
+async def logout(request: Request):
     """Clear session cookie and redirect to login."""
     response = RedirectResponse(url="/admin/login", status_code=303)
     response.delete_cookie(key=SESSION_COOKIE)
+    # Also clear Starlette session
+    request.session.clear()
     return response
 
 

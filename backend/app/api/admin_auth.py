@@ -18,16 +18,25 @@ serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 
 def get_session_user(request: Request) -> str | None:
-    """Extract and validate session cookie. Returns 'admin' or None."""
+    """Extract and validate session cookie or starlette session. Returns 'admin' or None."""
+    # 1. Check manual signed cookie (itsdangerous)
     cookie = request.cookies.get(SESSION_COOKIE)
-    if cookie is None:
-        return None
+    if cookie:
+        try:
+            data = serializer.loads(cookie, max_age=SESSION_MAX_AGE)
+            if data.get("role") == "admin":
+                return "admin"
+        except (BadSignature, Exception):
+            pass
+
+    # 2. Check Starlette session (used by OIDC)
     try:
-        data = serializer.loads(cookie, max_age=SESSION_MAX_AGE)
-        if data.get("role") == "admin":
+        if request.session.get("user"):
             return "admin"
-    except (BadSignature, Exception):
+    except (AttributeError, RuntimeError):
+        # session might not be initialized yet in some contexts
         pass
+
     return None
 
 
