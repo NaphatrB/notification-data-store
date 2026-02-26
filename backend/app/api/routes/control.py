@@ -7,7 +7,7 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import require_admin, require_device_token
@@ -35,7 +35,7 @@ from app.api.services import (
     rotate_token_svc,
 )
 from app.db import get_db
-from app.models import Device, DeviceConfig
+from app.models import Device, DeviceConfig, DeviceBatteryLog
 
 logger = logging.getLogger("control_plane")
 
@@ -353,3 +353,33 @@ async def delete_device(
         deviceId=result["deviceId"],
         deleted=True,
     )
+
+
+# ---------------------------------------------------------------------------
+# 4.10 Battery History (Admin Only)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/devices/{device_id}/battery-history",
+    dependencies=[Depends(require_admin)],
+)
+async def get_battery_history(
+    device_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return historical battery data for a device (last 100 points)."""
+    stmt = (
+        select(DeviceBatteryLog.battery_percentage, DeviceBatteryLog.created_at)
+        .where(DeviceBatteryLog.device_id == device_id)
+        .order_by(desc(DeviceBatteryLog.created_at))
+        .limit(100)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    # Return in chronological order
+    return [
+        {"percentage": r.battery_percentage, "timestamp": r.created_at.isoformat()}
+        for r in reversed(rows)
+    ]

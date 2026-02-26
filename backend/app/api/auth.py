@@ -12,12 +12,12 @@ import secrets
 from datetime import datetime, timezone
 
 from fastapi import Depends, Header, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_db
-from app.models import Device, DeviceToken
+from app.models import Device, DeviceToken, DeviceBatteryLog
 
 logger = logging.getLogger("control_plane.auth")
 
@@ -128,6 +128,33 @@ async def require_device_token(
     # Heartbeat: update last_seen_at
     device.last_seen_at = datetime.now(timezone.utc)
     if x_battery_level is not None:
+        # Check if we should log a new battery entry
+        # We log if:
+        # 1. Level changed
+        # 2. No logs yet
+        # 3. Last log is > 15 mins old
+        should_log = False
+        if device.battery_percentage != x_battery_level:
+            should_log = True
+        else:
+            # Check last log timestamp
+            last_log_stmt = (
+                select(DeviceBatteryLog)
+                .where(DeviceBatteryLog.device_id == device.id)
+                .order_by(desc(DeviceBatteryLog.created_at))
+                .limit(1)
+            )
+            last_log = (await db.execute(last_log_stmt)).scalar_one_or_none()
+            if not last_log:
+                should_log = True
+            else:
+                elapsed = datetime.now(timezone.utc) - last_log.created_at
+                if elapsed.total_seconds() > 900:  # 15 minutes
+                    should_log = True
+
+        if should_log:
+            db.add(DeviceBatteryLog(device_id=device.id, battery_percentage=x_battery_level))
+
         device.battery_percentage = x_battery_level
     await db.commit()
 

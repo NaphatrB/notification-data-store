@@ -83,9 +83,34 @@ class Device(Base):
 
     tokens: Mapped[list["DeviceToken"]] = relationship(back_populates="device")
     config: Mapped["DeviceConfig | None"] = relationship(back_populates="device", uselist=False)
+    battery_logs: Mapped[list["DeviceBatteryLog"]] = relationship(back_populates="device")
 
     __table_args__ = (
         Index("ix_devices_status", "status"),
+    )
+
+
+class DeviceBatteryLog(Base):
+    __tablename__ = "device_battery_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    device_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("devices.id"), nullable=False
+    )
+    battery_percentage: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
+
+    device: Mapped["Device"] = relationship(back_populates="battery_logs")
+
+    __table_args__ = (
+        Index("ix_device_battery_logs_device_id", "device_id"),
+        Index("ix_device_battery_logs_created_at", "created_at"),
     )
 
 

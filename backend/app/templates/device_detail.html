@@ -48,6 +48,60 @@
   </dl>
 </div>
 
+<h2>Battery History (Last 100 points)</h2>
+<div class="card">
+  <canvas id="batteryChart" width="400" height="150"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+  const deviceId = '{{ d.device.id }}';
+  const response = await fetch(`/control/v1/devices/${deviceId}/battery-history`);
+  const data = await response.json();
+
+  const labels = data.map(point => new Date(point.timestamp).toLocaleString());
+  const values = data.map(point => point.percentage);
+
+  const ctx = document.getElementById('batteryChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Battery Percentage',
+        data: values,
+        borderColor: '#007bff',
+        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            callback: function(value) { return value + "%" }
+          }
+        },
+        x: {
+          ticks: {
+            maxRotation: 45,
+            minRotation: 45,
+            autoSkip: true,
+            maxTicksLimit: 10
+          }
+        }
+      }
+    }
+  });
+});
+</script>
+
 <h2>Device Configuration</h2>
 <div class="card">
   {% if d.device.config %}
