@@ -68,6 +68,9 @@ async def register_device(
         device.android_version = body.androidVersion
         device.app_version = body.appVersion
         device.battery_percentage = body.batteryPercentage
+        device.temperature = body.temperature
+        device.latitude = body.latitude
+        device.longitude = body.longitude
         await db.commit()
         logger.info("Device re-registered: device_uuid=%s status=%s", body.deviceUuid, device.status)
         return DeviceRegisterResponse(deviceId=device.id, status=device.status)
@@ -80,6 +83,9 @@ async def register_device(
         android_version=body.androidVersion,
         app_version=body.appVersion,
         battery_percentage=body.batteryPercentage,
+        temperature=body.temperature,
+        latitude=body.latitude,
+        longitude=body.longitude,
     )
     db.add(device)
     await db.commit()
@@ -221,6 +227,9 @@ async def list_devices(
             appVersion=d.device.app_version,
             androidVersion=d.device.android_version,
             batteryPercentage=d.device.battery_percentage,
+            temperature=d.device.temperature,
+            latitude=d.device.latitude,
+            longitude=d.device.longitude,
             totalEventsIngested=d.total_events,
             lastEventAt=d.last_event_at,
         )
@@ -265,6 +274,9 @@ async def get_device(
         appVersion=d.device.app_version,
         androidVersion=d.device.android_version,
         batteryPercentage=d.device.battery_percentage,
+        temperature=d.device.temperature,
+        latitude=d.device.latitude,
+        longitude=d.device.longitude,
         totalEventsIngested=d.total_events,
         lastEventAt=d.last_event_at,
     )
@@ -368,9 +380,9 @@ async def get_battery_history(
     device_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    """Return historical battery data for a device (last 100 points)."""
+    """Return historical battery and temp data for a device (last 100 points)."""
     stmt = (
-        select(DeviceBatteryLog.battery_percentage, DeviceBatteryLog.created_at)
+        select(DeviceBatteryLog.battery_percentage, DeviceBatteryLog.temperature, DeviceBatteryLog.created_at)
         .where(DeviceBatteryLog.device_id == device_id)
         .order_by(desc(DeviceBatteryLog.created_at))
         .limit(100)
@@ -380,6 +392,10 @@ async def get_battery_history(
 
     # Return in chronological order
     return [
-        {"percentage": r.battery_percentage, "timestamp": r.created_at.isoformat()}
+        {
+            "percentage": r.battery_percentage,
+            "temperature": r.temperature,
+            "timestamp": r.created_at.isoformat()
+        }
         for r in reversed(rows)
     ]

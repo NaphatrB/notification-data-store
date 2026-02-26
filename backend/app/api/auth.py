@@ -69,6 +69,9 @@ async def require_admin(
 async def require_device_token(
     authorization: str | None = Header(None),
     x_battery_level: int | None = Header(None, alias="X-Battery-Level"),
+    x_device_temperature: float | None = Header(None, alias="X-Device-Temperature"),
+    x_device_latitude: float | None = Header(None, alias="X-Device-Latitude"),
+    x_device_longitude: float | None = Header(None, alias="X-Device-Longitude"),
     db: AsyncSession = Depends(get_db),
 ) -> Device:
     """Dependency: validate Bearer token and return the associated Device.
@@ -82,7 +85,7 @@ async def require_device_token(
 
     Side effect:
     - Updates device.last_seen_at
-    - Updates device.battery_percentage if X-Battery-Level header is present
+    - Updates device.battery_percentage, temperature, latitude, longitude
     """
     if authorization is None or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
@@ -128,13 +131,16 @@ async def require_device_token(
     # Heartbeat: update last_seen_at
     device.last_seen_at = datetime.now(timezone.utc)
     if x_battery_level is not None:
-        # Check if we should log a new battery entry
+        # Check if we should log a new history entry
         # We log if:
-        # 1. Level changed
+        # 1. Level or location or temp changed
         # 2. No logs yet
         # 3. Last log is > 15 mins old
         should_log = False
-        if device.battery_percentage != x_battery_level:
+        if (device.battery_percentage != x_battery_level or 
+            device.temperature != x_device_temperature or
+            device.latitude != x_device_latitude or
+            device.longitude != x_device_longitude):
             should_log = True
         else:
             # Check last log timestamp
@@ -153,9 +159,18 @@ async def require_device_token(
                     should_log = True
 
         if should_log:
-            db.add(DeviceBatteryLog(device_id=device.id, battery_percentage=x_battery_level))
+            db.add(DeviceBatteryLog(
+                device_id=device.id, 
+                battery_percentage=x_battery_level,
+                temperature=x_device_temperature,
+                latitude=x_device_latitude,
+                longitude=x_device_longitude
+            ))
 
         device.battery_percentage = x_battery_level
+        device.temperature = x_device_temperature
+        device.latitude = x_device_latitude
+        device.longitude = x_device_longitude
     await db.commit()
 
     return device

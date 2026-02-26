@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Index, Integer, Text, func, text
+from sqlalchemy import BigInteger, Boolean, Float, ForeignKey, Index, Integer, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -70,6 +70,9 @@ class Device(Base):
     android_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     app_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     battery_percentage: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
@@ -102,6 +105,9 @@ class DeviceBatteryLog(Base):
         UUID(as_uuid=True), ForeignKey("devices.id"), nullable=False
     )
     battery_percentage: Mapped[int] = mapped_column(Integer, nullable=False)
+    temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
     )

@@ -12,6 +12,7 @@
       <th>Device Name</th>
       <th>Status</th>
       <th>Battery</th>
+      <th>Temp</th>
       <th>Last Seen</th>
       <th>App Version</th>
       <th>Events</th>
@@ -32,6 +33,13 @@
       <td class="text-dim">
         {% if d.device.battery_percentage is not none %}
           {{ d.device.battery_percentage }}%
+        {% else %}
+          —
+        {% endif %}
+      </td>
+      <td class="text-dim">
+        {% if d.device.temperature is not none %}
+          {{ d.device.temperature }}°C
         {% else %}
           —
         {% endif %}

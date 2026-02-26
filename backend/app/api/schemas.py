@@ -87,6 +87,9 @@ class DeviceRegisterRequest(BaseModel):
     androidVersion: str | None = None
     appVersion: str | None = None
     batteryPercentage: int | None = None
+    temperature: float | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class DeviceRegisterResponse(BaseModel):
@@ -130,6 +133,9 @@ class DeviceListItem(BaseModel):
     appVersion: str | None = None
     androidVersion: str | None = None
     batteryPercentage: int | None = None
+    temperature: float | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     totalEventsIngested: int = 0
     lastEventAt: datetime | None = None
 

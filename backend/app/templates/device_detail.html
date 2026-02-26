@@ -31,6 +31,19 @@
     <dt>Battery Percentage</dt>
     <dd>{% if d.device.battery_percentage is not none %}{{ d.device.battery_percentage }}%{% else %}—{% endif %}</dd>
 
+    <dt>Temperature</dt>
+    <dd>{% if d.device.temperature is not none %}{{ d.device.temperature }}°C{% else %}—{% endif %}</dd>
+
+    <dt>Location</dt>
+    <dd>
+      {% if d.device.latitude and d.device.longitude %}
+        {{ d.device.latitude }}, {{ d.device.longitude }}
+        <a href="https://www.google.com/maps/search/?api=1&query={{ d.device.latitude }},{{ d.device.longitude }}" target="_blank" style="margin-left: 0.5rem; font-size: 0.8rem;">View on Maps</a>
+      {% else %}
+        —
+      {% endif %}
+    </dd>
+
     <dt>Approved At</dt>
     <dd>{% if d.device.approved_at %}{{ d.device.approved_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}—{% endif %}</dd>
 
@@ -48,9 +61,9 @@
   </dl>
 </div>
 
-<h2>Battery History (Last 100 points)</h2>
+<h2>Battery & Temperature History (Last 100 points)</h2>
 <div class="card">
-  <canvas id="batteryChart" width="400" height="150"></canvas>
+  <canvas id="historyChart" width="400" height="150"></canvas>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -61,32 +74,54 @@ document.addEventListener('DOMContentLoaded', async function() {
   const data = await response.json();
 
   const labels = data.map(point => new Date(point.timestamp).toLocaleString());
-  const values = data.map(point => point.percentage);
+  const batteryValues = data.map(point => point.percentage);
+  const tempValues = data.map(point => point.temperature);
 
-  const ctx = document.getElementById('batteryChart').getContext('2d');
+  const ctx = document.getElementById('historyChart').getContext('2d');
   new Chart(ctx, {
     type: 'line',
     data: {
       labels: labels,
-      datasets: [{
-        label: 'Battery Percentage',
-        data: values,
-        borderColor: '#007bff',
-        backgroundColor: 'rgba(0, 123, 255, 0.1)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.3
-      }]
+      datasets: [
+        {
+          label: 'Battery %',
+          data: batteryValues,
+          borderColor: '#007bff',
+          backgroundColor: 'rgba(0, 123, 255, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3,
+          yAxisID: 'y'
+        },
+        {
+          label: 'Temp °C',
+          data: tempValues,
+          borderColor: '#ffc107',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          fill: false,
+          tension: 0.3,
+          yAxisID: 'y1'
+        }
+      ]
     },
     options: {
       responsive: true,
       scales: {
         y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
           beginAtZero: true,
           max: 100,
-          ticks: {
-            callback: function(value) { return value + "%" }
-          }
+          title: { display: true, text: 'Battery %' }
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Temp °C' }
         },
         x: {
           ticks: {
