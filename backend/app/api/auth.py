@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_db
-from app.models import Device, DeviceToken, DeviceBatteryLog
+from app.models import Device, DeviceToken, DeviceTelemetryLog
 
 logger = logging.getLogger("control_plane.auth")
 
@@ -145,9 +145,9 @@ async def require_device_token(
         else:
             # Check last log timestamp
             last_log_stmt = (
-                select(DeviceBatteryLog)
-                .where(DeviceBatteryLog.device_id == device.id)
-                .order_by(desc(DeviceBatteryLog.created_at))
+                select(DeviceTelemetryLog)
+                .where(DeviceTelemetryLog.device_id == device.id)
+                .order_by(desc(DeviceTelemetryLog.created_at))
                 .limit(1)
             )
             last_log = (await db.execute(last_log_stmt)).scalar_one_or_none()
@@ -159,7 +159,7 @@ async def require_device_token(
                     should_log = True
 
         if should_log:
-            db.add(DeviceBatteryLog(
+            db.add(DeviceTelemetryLog(
                 device_id=device.id, 
                 battery_percentage=x_battery_level,
                 temperature=x_device_temperature,

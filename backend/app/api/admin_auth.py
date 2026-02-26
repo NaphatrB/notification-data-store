@@ -5,7 +5,7 @@ Used by both admin.py (device management) and admin_data.py (data viewer).
 
 import os
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from app.api.auth import ADMIN_TOKEN
@@ -38,6 +38,14 @@ def get_session_user(request: Request) -> str | None:
         pass
 
     return None
+
+
+def require_user_session(request: Request) -> str:
+    """Dependency: require session; raise 401 if invalid. Used for JSON endpoints."""
+    user = get_session_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Unauthorized session")
+    return user
 
 
 def require_session(request: Request) -> str | None:

@@ -86,15 +86,15 @@ class Device(Base):
 
     tokens: Mapped[list["DeviceToken"]] = relationship(back_populates="device")
     config: Mapped["DeviceConfig | None"] = relationship(back_populates="device", uselist=False)
-    battery_logs: Mapped[list["DeviceBatteryLog"]] = relationship(back_populates="device")
+    telemetry_logs: Mapped[list["DeviceTelemetryLog"]] = relationship(back_populates="device")
 
     __table_args__ = (
         Index("ix_devices_status", "status"),
     )
 
 
-class DeviceBatteryLog(Base):
-    __tablename__ = "device_battery_logs"
+class DeviceTelemetryLog(Base):
+    __tablename__ = "device_telemetry_logs"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -112,11 +112,11 @@ class DeviceBatteryLog(Base):
         TIMESTAMP(timezone=True), server_default=func.now()
     )
 
-    device: Mapped["Device"] = relationship(back_populates="battery_logs")
+    device: Mapped["Device"] = relationship(back_populates="telemetry_logs")
 
     __table_args__ = (
-        Index("ix_device_battery_logs_device_id", "device_id"),
-        Index("ix_device_battery_logs_created_at", "created_at"),
+        Index("ix_device_telemetry_logs_device_id", "device_id"),
+        Index("ix_device_telemetry_logs_created_at", "created_at"),
     )
 
 

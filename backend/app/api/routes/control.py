@@ -11,6 +11,7 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import require_admin, require_device_token
+from app.api.admin_auth import require_user_session
 from app.api.schemas import (
     DeviceApproveResponse,
     DeviceConfigResponse,
@@ -35,7 +36,7 @@ from app.api.services import (
     rotate_token_svc,
 )
 from app.db import get_db
-from app.models import Device, DeviceConfig, DeviceBatteryLog
+from app.models import Device, DeviceConfig, DeviceTelemetryLog
 
 logger = logging.getLogger("control_plane")
 
@@ -374,17 +375,23 @@ async def delete_device(
 
 @router.get(
     "/devices/{device_id}/battery-history",
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(require_user_session)],
 )
 async def get_battery_history(
     device_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    """Return historical battery and temp data for a device (last 100 points)."""
+    """Return historical battery, temp and location data for a device (last 100 points)."""
     stmt = (
-        select(DeviceBatteryLog.battery_percentage, DeviceBatteryLog.temperature, DeviceBatteryLog.created_at)
-        .where(DeviceBatteryLog.device_id == device_id)
-        .order_by(desc(DeviceBatteryLog.created_at))
+        select(
+            DeviceTelemetryLog.battery_percentage,
+            DeviceTelemetryLog.temperature,
+            DeviceTelemetryLog.latitude,
+            DeviceTelemetryLog.longitude,
+            DeviceTelemetryLog.created_at
+        )
+        .where(DeviceTelemetryLog.device_id == device_id)
+        .order_by(desc(DeviceTelemetryLog.created_at))
         .limit(100)
     )
     result = await db.execute(stmt)
@@ -395,6 +402,8 @@ async def get_battery_history(
         {
             "percentage": r.battery_percentage,
             "temperature": r.temperature,
+            "latitude": r.latitude,
+            "longitude": r.longitude,
             "timestamp": r.created_at.isoformat()
         }
         for r in reversed(rows)
