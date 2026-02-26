@@ -7,6 +7,7 @@
   <script src="/static/htmx.min.js"></script>
   <style>
     :root {
+      /* Dark Theme (Default) */
       --bg: #0f1117;
       --surface: #1a1d27;
       --border: #2a2d3a;
@@ -18,13 +19,33 @@
       --yellow: #fbbf24;
       --red: #f87171;
       --orange: #fb923c;
+      --th-bg: rgba(108,140,255,0.08);
+      --hover-bg: rgba(255,255,255,0.02);
     }
+
+    [data-theme="light"] {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: #dee2e6;
+      --text: #212529;
+      --text-dim: #6c757d;
+      --accent: #007bff;
+      --accent-hover: #0056b3;
+      --green: #28a745;
+      --yellow: #ffc107;
+      --red: #dc3545;
+      --orange: #fd7e14;
+      --th-bg: #f1f3f5;
+      --hover-bg: #f8f9fa;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       line-height: 1.5;
+      transition: background 0.2s, color 0.2s;
     }
     nav {
       background: var(--surface);
@@ -40,6 +61,10 @@
       color: var(--accent);
       text-decoration: none;
     }
+    nav .nav-right {
+      display: flex;
+      align-items: center;
+    }
     nav .nav-links a {
       color: var(--text-dim);
       text-decoration: none;
@@ -47,6 +72,22 @@
       font-size: 0.9rem;
     }
     nav .nav-links a:hover { color: var(--text); }
+
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      margin-left: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .theme-toggle:hover { color: var(--text); border-color: var(--text-dim); }
+
     .container {
       max-width: 960px;
       margin: 2rem auto;
@@ -62,8 +103,8 @@
       margin-bottom: 1rem;
       font-size: 0.9rem;
     }
-    .flash-error { background: rgba(248,113,113,0.15); border: 1px solid var(--red); color: var(--red); }
-    .flash-success { background: rgba(52,211,153,0.15); border: 1px solid var(--green); color: var(--green); }
+    .flash-error { background: rgba(248,113,113,0.1); border: 1px solid var(--red); color: var(--red); }
+    .flash-success { background: rgba(52,211,153,0.1); border: 1px solid var(--green); color: var(--green); }
 
     /* Tables */
     table {
@@ -72,6 +113,7 @@
       background: var(--surface);
       border-radius: 8px;
       overflow: hidden;
+      border: 1px solid var(--border);
     }
     th, td {
       text-align: left;
@@ -80,7 +122,7 @@
       font-size: 0.85rem;
     }
     th {
-      background: rgba(108,140,255,0.08);
+      background: var(--th-bg);
       color: var(--text-dim);
       font-weight: 600;
       font-size: 0.75rem;
@@ -88,7 +130,7 @@
       letter-spacing: 0.05em;
     }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(255,255,255,0.02); }
+    tr:hover td { background: var(--hover-bg); }
 
     /* Status badges */
     .badge {
@@ -112,15 +154,19 @@
       font-weight: 500;
       cursor: pointer;
       text-decoration: none;
-      color: #fff;
+      color: #fff !important;
       transition: opacity 0.15s;
     }
     .btn:hover { opacity: 0.85; }
     .btn-primary { background: var(--accent); }
-    .btn-green { background: var(--green); color: #000; }
-    .btn-red { background: var(--red); color: #000; }
-    .btn-orange { background: var(--orange); color: #000; }
+    .btn-green { background: var(--green); color: #fff !important; }
+    .btn-red { background: var(--red); color: #fff !important; }
+    .btn-orange { background: var(--orange); color: #fff !important; }
     .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+
+    [data-theme="light"] .btn-green, 
+    [data-theme="light"] .btn-red, 
+    [data-theme="light"] .btn-orange { color: #fff !important; }
 
     /* Cards */
     .card {
@@ -301,17 +347,30 @@
     /* Nav active link */
     nav .nav-links a.active { color: var(--text); border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
   </style>
+  <script>
+    // Theme loading script (prevents flash of wrong theme)
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
 </head>
 <body>
   {% block nav %}
   <nav>
     <a href="/admin/devices" class="brand">ANLA Admin</a>
-    <div class="nav-links">
-      <a href="/admin/devices">Devices</a>
-      <a href="/admin/raw">Raw Events</a>
-      <a href="/admin/pricing">Pricing</a>
-      <a href="/admin/parser">Parser</a>
-      <a href="/admin/logout">Logout</a>
+    <div class="nav-right">
+      <div class="nav-links">
+        <a href="/admin/devices">Devices</a>
+        <a href="/admin/raw">Raw Events</a>
+        <a href="/admin/pricing">Pricing</a>
+        <a href="/admin/parser">Parser</a>
+        <a href="/admin/logout">Logout</a>
+      </div>
+      <button class="theme-toggle" id="theme-toggle">
+        <span class="theme-icon">🌙</span>
+        <span class="theme-text">Dark</span>
+      </button>
     </div>
   </nav>
   {% endblock %}
@@ -326,5 +385,32 @@
 
     {% block content %}{% endblock %}
   </div>
+
+  <script>
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = themeToggle.querySelector('.theme-icon');
+    const themeText = themeToggle.querySelector('.theme-text');
+
+    function updateToggleUI(theme) {
+      if (theme === 'light') {
+        themeIcon.textContent = '☀️';
+        themeText.textContent = 'Light';
+      } else {
+        themeIcon.textContent = '🌙';
+        themeText.textContent = 'Dark';
+      }
+    }
+
+    // Initialize UI
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    updateToggleUI(currentTheme);
+
+    themeToggle.addEventListener('click', () => {
+      const newTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      updateToggleUI(newTheme);
+    });
+  </script>
 </body>
 </html>
