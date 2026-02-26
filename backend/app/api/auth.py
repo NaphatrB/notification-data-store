@@ -68,6 +68,7 @@ async def require_admin(
 
 async def require_device_token(
     authorization: str | None = Header(None),
+    x_battery_level: int | None = Header(None, alias="X-Battery-Level"),
     db: AsyncSession = Depends(get_db),
 ) -> Device:
     """Dependency: validate Bearer token and return the associated Device.
@@ -81,6 +82,7 @@ async def require_device_token(
 
     Side effect:
     - Updates device.last_seen_at
+    - Updates device.battery_percentage if X-Battery-Level header is present
     """
     if authorization is None or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
@@ -125,6 +127,8 @@ async def require_device_token(
 
     # Heartbeat: update last_seen_at
     device.last_seen_at = datetime.now(timezone.utc)
+    if x_battery_level is not None:
+        device.battery_percentage = x_battery_level
     await db.commit()
 
     return device

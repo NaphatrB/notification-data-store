@@ -69,6 +69,7 @@ class Device(Base):
     device_model: Mapped[str | None] = mapped_column(Text, nullable=True)
     android_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     app_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    battery_percentage: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()

@@ -28,6 +28,9 @@
     <dt>App Version</dt>
     <dd>{{ d.device.app_version or '—' }}</dd>
 
+    <dt>Battery Percentage</dt>
+    <dd>{% if d.device.battery_percentage is not none %}{{ d.device.battery_percentage }}%{% else %}—{% endif %}</dd>
+
     <dt>Approved At</dt>
     <dd>{% if d.device.approved_at %}{{ d.device.approved_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}—{% endif %}</dd>
 

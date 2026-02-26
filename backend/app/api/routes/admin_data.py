@@ -95,6 +95,49 @@ async def raw_list_page(
     )
 
 
+@router.get("/raw/filter-options", response_class=HTMLResponse)
+async def raw_filter_options(
+    request: Request,
+    deviceId: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return Source Type and App dropdown options filtered by device."""
+    redirect = _check_session(request)
+    if redirect:
+        return redirect
+
+    # Build base statements
+    st_stmt = select(distinct(RawEvent.source_type)).order_by(RawEvent.source_type)
+    app_stmt = (
+        select(distinct(RawEvent.app_name))
+        .where(RawEvent.app_name.is_not(None))
+        .order_by(RawEvent.app_name)
+    )
+
+    if deviceId:
+        try:
+            device_uuid = UUID(deviceId)
+            st_stmt = st_stmt.where(RawEvent.device_id == device_uuid)
+            app_stmt = app_stmt.where(RawEvent.device_id == device_uuid)
+        except ValueError:
+            pass
+
+    st_result = await db.execute(st_stmt)
+    app_result = await db.execute(app_stmt)
+
+    source_types = [r[0] for r in st_result.all()]
+    apps = [r[0] for r in app_result.all()]
+
+    return templates.TemplateResponse(
+        "admin/raw_filter_options.html",
+        {
+            "request": request,
+            "source_types": source_types,
+            "apps": apps,
+        },
+    )
+
+
 # ---------------------------------------------------------------------------
 # Raw Events — Table Partial (HTMX)
 # ---------------------------------------------------------------------------

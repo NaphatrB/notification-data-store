@@ -86,6 +86,7 @@ class DeviceRegisterRequest(BaseModel):
     deviceModel: str | None = None
     androidVersion: str | None = None
     appVersion: str | None = None
+    batteryPercentage: int | None = None
 
 
 class DeviceRegisterResponse(BaseModel):
@@ -128,6 +129,7 @@ class DeviceListItem(BaseModel):
     approvedAt: datetime | None = None
     appVersion: str | None = None
     androidVersion: str | None = None
+    batteryPercentage: int | None = None
     totalEventsIngested: int = 0
     lastEventAt: datetime | None = None
 

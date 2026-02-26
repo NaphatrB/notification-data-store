@@ -67,6 +67,7 @@ async def register_device(
         device.device_model = body.deviceModel
         device.android_version = body.androidVersion
         device.app_version = body.appVersion
+        device.battery_percentage = body.batteryPercentage
         await db.commit()
         logger.info("Device re-registered: device_uuid=%s status=%s", body.deviceUuid, device.status)
         return DeviceRegisterResponse(deviceId=device.id, status=device.status)
@@ -78,6 +79,7 @@ async def register_device(
         device_model=body.deviceModel,
         android_version=body.androidVersion,
         app_version=body.appVersion,
+        battery_percentage=body.batteryPercentage,
     )
     db.add(device)
     await db.commit()
@@ -218,6 +220,7 @@ async def list_devices(
             approvedAt=d.device.approved_at,
             appVersion=d.device.app_version,
             androidVersion=d.device.android_version,
+            batteryPercentage=d.device.battery_percentage,
             totalEventsIngested=d.total_events,
             lastEventAt=d.last_event_at,
         )
@@ -261,6 +264,7 @@ async def get_device(
         approvedAt=d.device.approved_at,
         appVersion=d.device.app_version,
         androidVersion=d.device.android_version,
+        batteryPercentage=d.device.battery_percentage,
         totalEventsIngested=d.total_events,
         lastEventAt=d.last_event_at,
     )

@@ -14,7 +14,11 @@
 
   <div class="filter-group">
     <label for="deviceId">Device</label>
-    <select name="deviceId" id="deviceId">
+    <select name="deviceId" id="deviceId"
+            hx-get="/admin/raw/filter-options"
+            hx-target="#nested-filters"
+            hx-swap="outerHTML"
+            hx-trigger="change">
       <option value="">All devices</option>
       {% for d in devices %}
       <option value="{{ d.id }}">{{ d.device_name or d.device_uuid }}</option>
@@ -22,24 +26,26 @@
     </select>
   </div>
 
-  <div class="filter-group">
-    <label for="sourceType">Source Type</label>
-    <select name="sourceType" id="sourceType">
-      <option value="">All</option>
-      {% for st in source_types %}
-      <option value="{{ st }}">{{ st }}</option>
-      {% endfor %}
-    </select>
-  </div>
+  <div id="nested-filters" style="display: contents;">
+    <div class="filter-group">
+      <label for="sourceType">Source Type</label>
+      <select name="sourceType" id="sourceType">
+        <option value="">All</option>
+        {% for st in source_types %}
+        <option value="{{ st }}">{{ st }}</option>
+        {% endfor %}
+      </select>
+    </div>
 
-  <div class="filter-group">
-    <label for="appName">App</label>
-    <select name="appName" id="appName">
-      <option value="">All</option>
-      {% for app in apps %}
-      <option value="{{ app }}">{{ app }}</option>
-      {% endfor %}
-    </select>
+    <div class="filter-group">
+      <label for="appName">App</label>
+      <select name="appName" id="appName">
+        <option value="">All</option>
+        {% for app in apps %}
+        <option value="{{ app }}">{{ app }}</option>
+        {% endfor %}
+      </select>
+    </div>
   </div>
 
   <div class="filter-group">
