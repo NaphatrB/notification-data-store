@@ -3,13 +3,13 @@
 {% block title %}Pricing Data — ANLA Admin{% endblock %}
 
 {% block content %}
-<div class="container-wide" style="max-width:1280px; margin:0 auto;">
+<div class="container-wide">
 <h1>Pricing Data</h1>
 
 <form id="pricing-filters" class="filter-bar">
   <div class="filter-group">
     <label for="q">Search</label>
-    <input type="text" name="q" id="q" placeholder="sender, supplier, size, grade…" style="min-width:180px;">
+    <input type="text" name="q" id="q" placeholder="sender, supplier, size, grade…">
   </div>
 
   <div class="filter-group">
@@ -54,12 +54,12 @@
 
   <div class="filter-group">
     <label for="minPrice">Min $/kg</label>
-    <input type="number" name="minPrice" id="minPrice" step="0.01" placeholder="—" style="width:90px;">
+    <input type="number" name="minPrice" id="minPrice" step="0.01" placeholder="—">
   </div>
 
   <div class="filter-group">
     <label for="maxPrice">Max $/kg</label>
-    <input type="number" name="maxPrice" id="maxPrice" step="0.01" placeholder="—" style="width:90px;">
+    <input type="number" name="maxPrice" id="maxPrice" step="0.01" placeholder="—">
   </div>
 
   <div class="filter-group">
@@ -154,4 +154,5 @@ document.getElementById('export-btn').addEventListener('click', function(e) {
   window.location.href = '/admin/pricing/export' + (qs ? '?' + qs : '');
 });
 </script>
+</div>
 {% endblock %}

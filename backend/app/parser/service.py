@@ -190,7 +190,13 @@ def run(reset_offset_flag: bool = False) -> None:
     """Main entry point — synchronous polling loop."""
     # Convert async URL to sync
     sync_url = _build_sync_url(RAW_DATABASE_URL)
-    engine = create_engine(sync_url, echo=False)
+    engine = create_engine(
+        sync_url,
+        echo=False,
+        pool_pre_ping=True,  # Ensure long-running loop recovers from DB disconnects
+        pool_size=5,
+        max_overflow=5,
+    )
     SessionFactory = sessionmaker(bind=engine)
 
     logger.info("Parser '%s' (version=%s) starting", PARSER_NAME, PARSER_VERSION)

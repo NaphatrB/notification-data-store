@@ -3,13 +3,13 @@
 {% block title %}Raw Events — ANLA Admin{% endblock %}
 
 {% block content %}
-<div class="container-wide" style="max-width:1280px; margin:0 auto;">
+<div class="container-wide">
 <h1>Raw Events</h1>
 
 <form id="raw-filters" class="filter-bar">
   <div class="filter-group">
     <label for="q">Search</label>
-    <input type="text" name="q" id="q" placeholder="title, text, big_text…" style="min-width:180px;">
+    <input type="text" name="q" id="q" placeholder="title, text, big_text…">
   </div>
 
   <div class="filter-group">
@@ -125,4 +125,5 @@ document.getElementById('raw-export-btn').addEventListener('click', function(e) 
   window.location.href = '/admin/raw/export' + (qs ? '?' + qs : '');
 });
 </script>
+</div>
 {% endblock %}

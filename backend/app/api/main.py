@@ -92,6 +92,12 @@ async def _startup_checks() -> None:
         )
 
 
+@app.get("/", include_in_schema=False)
+async def root():
+    """Redirect / to /admin."""
+    return RedirectResponse(url="/admin", status_code=303)
+
+
 @app.get("/health")
 async def health() -> dict:
     try:

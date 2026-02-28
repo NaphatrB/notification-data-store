@@ -3,6 +3,7 @@
 {% block title %}Event #{{ event.seq }} — ANLA Admin{% endblock %}
 
 {% block content %}
+<div class="container-wide">
 <h1>Raw Event #{{ event.seq }}</h1>
 
 <div class="card">
@@ -60,4 +61,5 @@
 {% endif %}
 
 <p class="mt-2"><a href="/admin/raw" style="color: var(--accent); font-size: 0.85rem;">← Back to raw events</a></p>
+</div>
 {% endblock %}

@@ -19,8 +19,14 @@
     {% for e in events %}
     <tr>
       <td>{{ e.seq }}</td>
-      <td style="font-family: monospace; font-size: 0.75rem;">
-        {% if e.device_id %}{{ e.device_id | string | truncate(8, True, '') }}{% else %}—{% endif %}
+      <td>
+        {% if e.device_id %}
+          <a href="/admin/devices/{{ e.device_id }}" style="color: var(--accent); text-decoration: none;">
+            {{ e.device_name or (e.device_uuid | string | truncate(8, True, '')) }}
+          </a>
+        {% else %}
+          —
+        {% endif %}
       </td>
       <td>{{ e.source_type }}</td>
       <td>{{ e.app_name or '—' }}</td>

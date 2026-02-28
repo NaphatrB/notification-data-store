@@ -4,6 +4,7 @@ All endpoints live under /control/v1/.
 """
 
 import logging
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -72,6 +73,7 @@ async def register_device(
         device.temperature = body.temperature
         device.latitude = body.latitude
         device.longitude = body.longitude
+        device.altitude = body.altitude
         await db.commit()
         logger.info("Device re-registered: device_uuid=%s status=%s", body.deviceUuid, device.status)
         return DeviceRegisterResponse(deviceId=device.id, status=device.status)
@@ -87,6 +89,7 @@ async def register_device(
         temperature=body.temperature,
         latitude=body.latitude,
         longitude=body.longitude,
+        altitude=body.altitude,
     )
     db.add(device)
     await db.commit()
@@ -192,6 +195,9 @@ async def get_device_config(
         captureMode=config.capture_mode,
         pollIntervalSeconds=config.poll_interval_seconds,
         parserEnabled=config.parser_enabled,
+        collectBattery=config.collect_battery,
+        collectTemperature=config.collect_temperature,
+        collectLocation=config.collect_location,
     )
 
 
@@ -231,6 +237,7 @@ async def list_devices(
             temperature=d.device.temperature,
             latitude=d.device.latitude,
             longitude=d.device.longitude,
+            altitude=d.device.altitude,
             totalEventsIngested=d.total_events,
             lastEventAt=d.last_event_at,
         )
@@ -278,8 +285,10 @@ async def get_device(
         temperature=d.device.temperature,
         latitude=d.device.latitude,
         longitude=d.device.longitude,
+        altitude=d.device.altitude,
         totalEventsIngested=d.total_events,
         lastEventAt=d.last_event_at,
+        lifetimeCycleCount=d.lifetime_cycle_count,
     )
 
 
@@ -369,7 +378,24 @@ async def delete_device(
 
 
 # ---------------------------------------------------------------------------
-# 4.10 Battery History (Admin Only)
+# 4.10 Telemetry Heartbeat (Device Only)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/devices/heartbeat", status_code=204)
+async def telemetry_heartbeat(
+    device: Device = Depends(require_device_token),
+) -> None:
+    """Explicit heartbeat for devices to send telemetry without an event.
+
+    The telemetry logging and last_seen_at update are handled automatically
+    by the 'require_device_token' dependency via X-Device-* headers.
+    """
+    return
+
+
+# ---------------------------------------------------------------------------
+# 4.11 Battery History (Admin Only)
 # ---------------------------------------------------------------------------
 
 
@@ -379,21 +405,39 @@ async def delete_device(
 )
 async def get_battery_history(
     device_id: UUID,
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return historical battery, temp and location data for a device (last 100 points)."""
-    stmt = (
-        select(
-            DeviceTelemetryLog.battery_percentage,
-            DeviceTelemetryLog.temperature,
-            DeviceTelemetryLog.latitude,
-            DeviceTelemetryLog.longitude,
-            DeviceTelemetryLog.created_at
-        )
-        .where(DeviceTelemetryLog.device_id == device_id)
-        .order_by(desc(DeviceTelemetryLog.created_at))
-        .limit(100)
-    )
+    """Return historical battery, temp and location data for a device."""
+    stmt = select(
+        DeviceTelemetryLog.battery_percentage,
+                    DeviceTelemetryLog.temperature,
+                    DeviceTelemetryLog.latitude,
+                    DeviceTelemetryLog.longitude,
+                    DeviceTelemetryLog.altitude,
+                    DeviceTelemetryLog.created_at
+        
+    ).where(DeviceTelemetryLog.device_id == device_id)
+
+    if start_date:
+        try:
+            # Append T00:00:00 if only date is provided
+            if len(start_date) == 10:
+                start_date += "T00:00:00"
+            stmt = stmt.where(DeviceTelemetryLog.created_at >= datetime.fromisoformat(start_date))
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            # Append T23:59:59 if only date is provided
+            if len(end_date) == 10:
+                end_date += "T23:59:59"
+            stmt = stmt.where(DeviceTelemetryLog.created_at <= datetime.fromisoformat(end_date))
+        except ValueError:
+            pass
+
+    stmt = stmt.order_by(desc(DeviceTelemetryLog.created_at)).limit(1000)
     result = await db.execute(stmt)
     rows = result.all()
 
@@ -404,6 +448,7 @@ async def get_battery_history(
             "temperature": r.temperature,
             "latitude": r.latitude,
             "longitude": r.longitude,
+            "altitude": r.altitude,
             "timestamp": r.created_at.isoformat()
         }
         for r in reversed(rows)

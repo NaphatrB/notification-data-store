@@ -3,6 +3,7 @@
 {% block title %}Devices — ANLA Admin{% endblock %}
 
 {% block content %}
+<div class="container-wide">
 <h1>Devices <span class="text-dim text-sm">({{ devices | length }})</span></h1>
 
 {% if devices %}
@@ -70,4 +71,5 @@
   <p class="text-dim">No devices registered yet.</p>
 </div>
 {% endif %}
+</div>
 {% endblock %}

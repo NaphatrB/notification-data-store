@@ -387,6 +387,9 @@ async def update_config_action(
     request: Request,
     device_id: UUID,
     capture_mode: str = Form(...),
+    collect_battery: bool = Form(False),
+    collect_temperature: bool = Form(False),
+    collect_location: bool = Form(False),
     db: AsyncSession = Depends(get_db),
 ):
     """Update device configuration, redirect back to detail."""
@@ -395,7 +398,14 @@ async def update_config_action(
         return RedirectResponse(url="/admin/login", status_code=303)
 
     try:
-        await update_device_config_svc(db, device_id, capture_mode=capture_mode)
+        await update_device_config_svc(
+            db,
+            device_id,
+            capture_mode=capture_mode,
+            collect_battery=collect_battery,
+            collect_temperature=collect_temperature,
+            collect_location=collect_location,
+        )
     except DeviceNotFoundError:
         return RedirectResponse(
             url=f"/admin/devices/{device_id}?error=Device+not+found",

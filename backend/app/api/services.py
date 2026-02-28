@@ -49,6 +49,7 @@ class DeviceWithStats:
     device: Device
     total_events: int
     last_event_at: datetime | None
+    lifetime_cycle_count: float = 0.0
 
 
 @dataclass
@@ -131,10 +132,31 @@ async def get_device_svc(db: AsyncSession, device_id: UUID) -> DeviceWithStats:
         raise DeviceNotFoundError()
 
     device, total_events, last_event_at = row
+
+    # Calculate lifetime cycle count
+    # Cycle = sum of all discharge deltas / 100
+    from sqlalchemy import text
+    cycle_stmt = text(
+        """
+        WITH deltas AS (
+            SELECT 
+                battery_percentage - LAG(battery_percentage) OVER (ORDER BY created_at) as diff
+            FROM device_telemetry_logs
+            WHERE device_id = :device_id
+        )
+        SELECT COALESCE(SUM(ABS(diff)), 0) / 100.0
+        FROM deltas
+        WHERE diff < 0
+        """
+    )
+    cycle_result = await db.execute(cycle_stmt, {"device_id": device_id})
+    lifetime_cycles = cycle_result.scalar() or 0.0
+
     return DeviceWithStats(
         device=device,
         total_events=total_events or 0,
         last_event_at=last_event_at,
+        lifetime_cycle_count=float(lifetime_cycles),
     )
 
 
@@ -203,6 +225,9 @@ async def update_device_config_svc(
     db: AsyncSession,
     device_id: UUID,
     capture_mode: str,
+    collect_battery: bool = True,
+    collect_temperature: bool = True,
+    collect_location: bool = True,
 ) -> DeviceConfig:
     """Update device configuration."""
     stmt = select(DeviceConfig).where(DeviceConfig.device_id == device_id)
@@ -214,6 +239,9 @@ async def update_device_config_svc(
 
     old_mode = config.capture_mode
     config.capture_mode = capture_mode
+    config.collect_battery = collect_battery
+    config.collect_temperature = collect_temperature
+    config.collect_location = collect_location
     config.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
@@ -225,7 +253,13 @@ async def update_device_config_svc(
         action="device_config_updated",
         target_type="device",
         target_id=device_id,
-        metadata={"old_capture_mode": old_mode, "new_capture_mode": capture_mode},
+        metadata={
+            "old_capture_mode": old_mode,
+            "new_capture_mode": capture_mode,
+            "collect_battery": collect_battery,
+            "collect_temperature": collect_temperature,
+            "collect_location": collect_location,
+        },
     )
     await db.commit()
 

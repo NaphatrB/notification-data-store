@@ -3,7 +3,7 @@
 {% block title %}Parser Dashboard — ANLA Admin{% endblock %}
 
 {% block content %}
-<div class="container-wide" style="max-width:1280px; margin:0 auto;">
+<div class="container-wide">
 <h1>Parser Dashboard</h1>
 
 <!-- Stats Cards -->
@@ -132,5 +132,13 @@
   .stat-label { font-size: 0.85rem; color: #888; margin-bottom: 4px; }
   .stat-value { font-size: 1.8rem; font-weight: 700; }
   .stat-sub { font-size: 0.75rem; color: #666; margin-top: 4px; }
+
+  @media (max-width: 768px) {
+    .stat-card {
+      width: calc(50% - 8px);
+      flex-grow: 1;
+    }
+  }
 </style>
+</div>
 {% endblock %}

@@ -34,6 +34,13 @@ class NotificationEventIn(BaseModel):
     text: str | None = None
     bigText: str | None = None
 
+    # Telemetry (at most once every 5 minutes)
+    batteryPercentage: int | None = None
+    temperature: float | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    altitude: float | None = None
+
 
 class EventResponse(BaseModel):
     status: str
@@ -90,6 +97,7 @@ class DeviceRegisterRequest(BaseModel):
     temperature: float | None = None
     latitude: float | None = None
     longitude: float | None = None
+    altitude: float | None = None
 
 
 class DeviceRegisterResponse(BaseModel):
@@ -114,6 +122,9 @@ class DeviceConfigResponse(BaseModel):
     captureMode: str
     pollIntervalSeconds: int
     parserEnabled: bool
+    collectBattery: bool = True
+    collectTemperature: bool = True
+    collectLocation: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -136,8 +147,10 @@ class DeviceListItem(BaseModel):
     temperature: float | None = None
     latitude: float | None = None
     longitude: float | None = None
+    altitude: float | None = None
     totalEventsIngested: int = 0
     lastEventAt: datetime | None = None
+    lifetimeCycleCount: float = 0.0
 
 
 class DeviceListResponse(BaseModel):

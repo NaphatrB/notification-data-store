@@ -73,6 +73,7 @@ class Device(Base):
     temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    altitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
@@ -108,6 +109,7 @@ class DeviceTelemetryLog(Base):
     temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    altitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
     )
@@ -165,6 +167,15 @@ class DeviceConfig(Base):
         Integer, nullable=False, server_default="300"
     )
     parser_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="true"
+    )
+    collect_battery: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="true"
+    )
+    collect_temperature: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="true"
+    )
+    collect_location: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="true"
     )
     updated_at: Mapped[str] = mapped_column(

@@ -3,9 +3,242 @@
 {% block title %}{{ d.device.device_name or d.device.device_uuid }} — ANLA Admin{% endblock %}
 
 {% block content %}
+<div class="container-wide">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <style>
-  #map { height: 300px; border-radius: 8px; margin-top: 1rem; border: 1px solid var(--border); }
+  .history-container {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+    height: 600px;
+    margin-top: 1rem;
+  }
+  .map-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+  #map { height: 100%; width: 100%; z-index: 1; }
+  
+  .timeline-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .timeline-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--th-bg);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .timeline-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
+  .timeline-day {
+    margin-bottom: 1rem;
+  }
+  .timeline-day-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-weight: 700;
+    padding: 0.5rem;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 2;
+  }
+  .timeline-item {
+    padding: 0.6rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background 0.1s;
+    border-left: 3px solid transparent;
+    margin-bottom: 2px;
+  }
+  .timeline-item:hover, .timeline-item.highlight {
+    background: var(--hover-bg);
+    border-left-color: var(--accent);
+  }
+  .timeline-item .time { font-weight: 600; color: var(--text); }
+  .timeline-item .meta { color: var(--text-dim); font-size: 0.75rem; margin-top: 0.1rem; }
+
+  .marker-highlight {
+    filter: hue-rotate(140deg) brightness(1.2);
+    z-index: 1000 !important;
+  }
+
+  .filter-bar-advanced {
+    background: var(--surface);
+    padding: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  .filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .preset-btns { display: flex; gap: 0.5rem; }
+  
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: flex-end;
+  }
+  .date-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 0.4rem; }
+  .filter-group label { font-size: 0.7rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+  
+  .filter-bar-advanced input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    height: 36px;
+    padding: 0 0.75rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    transition: border-color 0.2s;
+  }
+  .filter-bar-advanced input:focus { border-color: var(--accent); outline: none; }
+
+  .preset-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 0 1rem;
+    height: 32px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+  }
+  .preset-btn:hover { border-color: var(--text-dim); color: var(--text); }
+  .preset-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  .nav-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--hover-bg); }
+
+  /* Chart Tabs */
+  .chart-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+  .chart-tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .chart-tab-btn:hover { background: var(--hover-bg); color: var(--text); }
+  .chart-tab-btn.active {
+    background: var(--th-bg);
+    color: var(--accent);
+  }
+  .chart-panel { display: none; }
+  .chart-panel.active { display: block; }
+
+  @media (max-width: 768px) {
+    .filter-header { flex-direction: column; gap: 1rem; align-items: flex-start; }
+    .filter-row { flex-direction: column; align-items: stretch; gap: 1.25rem; }
+    .date-controls { width: 100%; justify-content: space-between; }
+    .filter-group { flex: 1; }
+    .filter-group input { width: 100%; }
+    #applyFilters { width: 100%; margin-top: 0.5rem; }
+    
+    .history-container {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+    .map-wrapper {
+      height: 400px;
+    }
+    .timeline-wrapper {
+      height: 500px;
+    }
+    .telemetry-options {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 0.75rem !important;
+    }
+    .chart-container {
+      height: 400px;
+      position: relative;
+    }
+  }
+
+  /* Battery Stats */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .stat-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+  .stat-unit { font-size: 0.85rem; color: var(--text-dim); margin-left: 0.2rem; }
+
+  .chart-container {
+    height: 500px;
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
 </style>
 
 <h1>Device Detail</h1>
@@ -14,164 +247,488 @@
   <dl>
     <dt>Device Name</dt>
     <dd>{{ d.device.device_name or '—' }}</dd>
-
-    <dt>Device UUID</dt>
-    <dd class="text-dim" style="font-family: monospace; font-size: 0.8rem;">{{ d.device.device_uuid }}</dd>
-
-    <dt>Server ID</dt>
-    <dd class="text-dim" style="font-family: monospace; font-size: 0.8rem;">{{ d.device.id }}</dd>
-
     <dt>Status</dt>
     <dd><span class="badge badge-{{ d.device.status }}">{{ d.device.status }}</span></dd>
-
-    <dt>Device Model</dt>
-    <dd>{{ d.device.device_model or '—' }}</dd>
-
-    <dt>Android Version</dt>
-    <dd>{{ d.device.android_version or '—' }}</dd>
-
-    <dt>App Version</dt>
-    <dd>{{ d.device.app_version or '—' }}</dd>
-
-    <dt>Battery Percentage</dt>
-    <dd>{% if d.device.battery_percentage is not none %}{{ d.device.battery_percentage }}%{% else %}—{% endif %}</dd>
-
-    <dt>Temperature</dt>
-    <dd>{% if d.device.temperature is not none %}{{ d.device.temperature }}°C{% else %}—{% endif %}</dd>
-
-    <dt>Location</dt>
+    <dt>Battery / Temp</dt>
     <dd>
-      {% if d.device.latitude and d.device.longitude %}
-        {{ d.device.latitude }}, {{ d.device.longitude }}
-        <a href="https://www.google.com/maps/search/?api=1&query={{ d.device.latitude }},{{ d.device.longitude }}" target="_blank" style="margin-left: 0.5rem; font-size: 0.8rem;">View on Maps</a>
-      {% else %}
-        —
-      {% endif %}
+        {% if d.device.battery_percentage is not none %}{{ d.device.battery_percentage }}%{% else %}—{% endif %} /
+        {% if d.device.temperature is not none %}{{ d.device.temperature }}°C{% else %}—{% endif %}
     </dd>
-
-    <dt>Approved At</dt>
-    <dd>{% if d.device.approved_at %}{{ d.device.approved_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}—{% endif %}</dd>
-
+    <dt>Altitude</dt>
+    <dd>{% if d.device.altitude is not none %}{{ d.device.altitude | round(1) }} m{% else %}—{% endif %}</dd>
     <dt>Last Seen</dt>
-    <dd>{% if d.device.last_seen_at %}{{ d.device.last_seen_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}—{% endif %}</dd>
-
-    <dt>Total Events</dt>
-    <dd>{{ d.total_events }}</dd>
-
-    <dt>Last Event</dt>
-    <dd>{% if d.last_event_at %}{{ d.last_event_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}—{% endif %}</dd>
-
-    <dt>Active Tokens</dt>
-    <dd>{{ active_token_count }}</dd>
+    <dd>{% if d.last_seen_at %}{{ d.last_seen_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}—{% endif %}</dd>
   </dl>
 </div>
 
-<h2>Battery & Temperature History (Last 100 points)</h2>
-<div class="card">
-  <canvas id="historyChart" width="400" height="150"></canvas>
+<div class="filter-bar-advanced">
+  <div class="filter-header">
+    <div class="preset-btns">
+      <button class="preset-btn active" data-preset="today">Today</button>
+      <button class="preset-btn" data-preset="yesterday">Yesterday</button>
+      <button class="preset-btn" data-preset="custom">Custom Range</button>
+    </div>
+    <div class="text-dim text-sm" id="filter-status">Viewing: Today</div>
+  </div>
+  
+  <div class="filter-row">
+    <div class="date-controls">
+      <button class="nav-btn" id="prevDay" title="Previous Day">&lt;</button>
+      
+      <div class="filter-group">
+        <label>From</label>
+        <input type="datetime-local" id="startDate" name="startDate">
+      </div>
+      
+      <div class="filter-group">
+        <label>To</label>
+        <input type="datetime-local" id="endDate" name="endDate">
+      </div>
+
+      <button class="nav-btn" id="nextDay" title="Next Day">&gt;</button>
+    </div>
+
+    <div class="filter-group">
+      <label>Resolution</label>
+      <select id="chartResolution" style="height: 36px; padding: 0 0.75rem; border-radius: 8px; background: var(--bg); color: var(--text); border: 1px solid var(--border); font-size: 0.85rem;">
+        <option value="auto" selected>Auto (Best Fit)</option>
+        <option value="raw">Raw (All Data)</option>
+        <option value="1m">1 Minute</option>
+        <option value="5m">5 Minutes</option>
+        <option value="15m">15 Minutes</option>
+        <option value="1h">1 Hour</option>
+        <option value="1d">1 Day</option>
+      </select>
+    </div>
+
+    <button id="applyFilters" class="btn btn-primary" style="margin-left: auto;">Update View</button>
+  </div>
 </div>
 
-<h2>Location History (Last 100 points)</h2>
+<h2>Battery Insights</h2>
+<div class="stat-grid" id="battery-stats">
+  <div class="stat-card">
+    <div class="stat-label">Min / Max</div>
+    <div class="stat-value" id="stat-min-max">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Charging Time</div>
+    <div class="stat-value" id="stat-charge-time">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Discharging Time</div>
+    <div class="stat-value" id="stat-discharge-time">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Range Est. Cycles</div>
+    <div class="stat-value" id="stat-cycles">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">All-Time Est. Cycles</div>
+    <div class="stat-value">{{ "%.2f" | format(d.lifetimeCycleCount or 0) }}</div>
+  </div>
+</div>
+
+<h2>Telemetry Trends</h2>
 <div class="card">
-  <div id="map"></div>
+  <div class="chart-tabs">
+    <button class="chart-tab-btn active" data-tab="battery">Battery</button>
+    <button class="chart-tab-btn" data-tab="temp">Temperature</button>
+    <button class="chart-tab-btn" data-tab="alt">Altitude</button>
+  </div>
+  
+  <div id="panel-battery" class="chart-panel active chart-container">
+    <canvas id="chart-battery"></canvas>
+  </div>
+  <div id="panel-temp" class="chart-panel chart-container">
+    <canvas id="chart-temp"></canvas>
+  </div>
+  <div id="panel-alt" class="chart-panel chart-container">
+    <canvas id="chart-alt"></canvas>
+  </div>
+</div>
+
+<h2>Location & Movement Timeline</h2>
+<div class="history-container">
+  <div class="map-wrapper">
+    <div id="map"></div>
+  </div>
+  
+  <div class="timeline-wrapper">
+    <div class="timeline-header">History Timeline (Desc)</div>
+    <div class="timeline-list" id="timeline-list"></div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', function() {
   const deviceId = '{{ d.device.id }}';
-  const response = await fetch(`/control/v1/devices/${deviceId}/battery-history`);
-  const data = await response.json();
+  const timelineList = document.getElementById('timeline-list');
+  const startInput = document.getElementById('startDate');
+  const endInput = document.getElementById('endDate');
+  const applyBtn = document.getElementById('applyFilters');
+  const prevBtn = document.getElementById('prevDay');
+  const nextBtn = document.getElementById('nextDay');
+  const presetBtns = document.querySelectorAll('.preset-btn');
 
-  // --- Chart.js History Logic ---
-  const labels = data.map(point => new Date(point.timestamp).toLocaleString());
-  const batteryValues = data.map(point => point.percentage);
-  const tempValues = data.map(point => point.temperature);
+  let batteryChart = null;
+  let tempChart = null;
+  let altChart = null;
+  let map = null;
+  let polyline = null;
+  let markers = {}; 
+  let timelineItems = {};
 
-  const ctx = document.getElementById('historyChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: 'Battery %',
-          data: batteryValues,
-          borderColor: '#007bff',
-          backgroundColor: 'rgba(0, 123, 255, 0.1)',
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3,
-          yAxisID: 'y'
-        },
-        {
-          label: 'Temp °C',
-          data: tempValues,
-          borderColor: '#ffc107',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          fill: false,
-          tension: 0.3,
-          yAxisID: 'y1'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          type: 'linear',
-          display: true,
-          position: 'left',
-          beginAtZero: true,
-          max: 100,
-          title: { display: true, text: 'Battery %' }
-        },
-        y1: {
-          type: 'linear',
-          display: true,
-          position: 'right',
-          grid: { drawOnChartArea: false },
-          title: { display: true, text: 'Temp °C' }
-        },
-        x: {
-          ticks: {
-            maxRotation: 45,
-            minRotation: 45,
-            autoSkip: true,
-            maxTicksLimit: 10
-          }
+  function setPreset(preset) {
+    presetBtns.forEach(b => b.classList.toggle('active', b.dataset.preset === preset));
+    const statusEl = document.getElementById('filter-status');
+    
+    const now = new Date();
+    const start = new Date();
+    const end = new Date();
+
+    if (preset === 'today') {
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      statusEl.textContent = 'Viewing: Today';
+    } else if (preset === 'yesterday') {
+      start.setDate(now.getDate() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setDate(now.getDate() - 1);
+      end.setHours(23, 59, 59, 999);
+      statusEl.textContent = 'Viewing: Yesterday';
+    } else {
+      statusEl.textContent = 'Viewing: Custom Range';
+    }
+
+    if (preset !== 'custom') {
+      startInput.value = formatDateTimeLocal(start);
+      endInput.value = formatDateTimeLocal(end);
+      loadData();
+    }
+  }
+
+  function formatDateTimeLocal(date) {
+    const offset = date.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(date - offset)).toISOString().slice(0, 16);
+    return localISOTime;
+  }
+
+  function shiftDay(delta) {
+    const start = new Date(startInput.value);
+    const end = new Date(endInput.value);
+    start.setDate(start.getDate() + delta);
+    end.setDate(end.getDate() + delta);
+    startInput.value = formatDateTimeLocal(start);
+    endInput.value = formatDateTimeLocal(end);
+    loadData();
+  }
+
+  async function loadData() {
+    const params = new URLSearchParams();
+    if (startInput.value) params.append('start_date', new Date(startInput.value).toISOString());
+    if (endInput.value) params.append('end_date', new Date(endInput.value).toISOString());
+    
+    const url = `/control/v1/devices/${deviceId}/battery-history?${params.toString()}`;
+    timelineList.innerHTML = '<div style="padding: 2rem; text-align: center;" class="text-dim">Loading...</div>';
+    
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      renderUI(data);
+    } catch (e) {
+      timelineList.innerHTML = '<div style="padding: 2rem; text-align: center;" class="text-red">Error loading data.</div>';
+    }
+  }
+
+  function renderUI(data) {
+    if (!data || data.length === 0) {
+      timelineList.innerHTML = '<div style="padding: 2rem; text-align: center;" class="text-dim">No history found for this period.</div>';
+      if (batteryChart) batteryChart.destroy();
+      if (tempChart) tempChart.destroy();
+      if (altChart) altChart.destroy();
+      clearMap();
+      resetStats();
+      return;
+    }
+    
+    // Get selected resolution
+    const mode = document.getElementById('chartResolution').value;
+    const processedData = downsample(data, mode);
+    
+    renderCharts(processedData);
+    renderMapAndTimeline(processedData);
+    calculateBatteryStats(data); // Use raw data for accurate stats
+  }
+
+  function resetStats() {
+    ['stat-min-max', 'stat-charge-time', 'stat-discharge-time', 'stat-cycles'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+  }
+
+  function calculateBatteryStats(data) {
+    if (data.length < 2) return;
+
+    let min = 100, max = 0;
+    let chargeMs = 0, dischargeMs = 0;
+    let totalDischargePercent = 0;
+
+    for (let i = 0; i < data.length; i++) {
+      const p = data[i];
+      if (p.percentage < min) min = p.percentage;
+      if (p.percentage > max) max = p.percentage;
+
+      if (i > 0) {
+        const prev = data[i-1];
+        const dt = new Date(p.timestamp) - new Date(prev.timestamp);
+        const dp = p.percentage - prev.percentage;
+
+        if (dp > 0) chargeMs += dt;
+        else if (dp < 0) {
+          dischargeMs += dt;
+          totalDischargePercent += Math.abs(dp);
         }
       }
     }
+
+    const formatDuration = (ms) => {
+      const hours = Math.floor(ms / 3600000);
+      const mins = Math.floor((ms % 3600000) / 60000);
+      return `${hours}h ${mins}m`;
+    };
+
+    document.getElementById('stat-min-max').innerHTML = `${min}% <span style="font-weight:400; color:var(--text-dim);">/</span> ${max}%`;
+    document.getElementById('stat-charge-time').textContent = formatDuration(chargeMs);
+    document.getElementById('stat-discharge-time').textContent = formatDuration(dischargeMs);
+    document.getElementById('stat-cycles').textContent = (totalDischargePercent / 100).toFixed(2);
+  }
+
+  function downsample(data, mode) {
+    if (data.length === 0) return [];
+    if (mode === 'raw') return data;
+
+    // 1. Determine Bucket Size (in milliseconds)
+    let bucketMs = 0;
+    if (mode === '1m') bucketMs = 60 * 1000;
+    else if (mode === '5m') bucketMs = 5 * 60 * 1000;
+    else if (mode === '15m') bucketMs = 15 * 60 * 1000;
+    else if (mode === '1h') bucketMs = 60 * 60 * 1000;
+    else if (mode === '1d') bucketMs = 24 * 60 * 60 * 1000;
+
+    // 2. Quantize or Bucket-Sample
+    if (bucketMs > 0) {
+      const buckets = {};
+      data.forEach(p => {
+        const ts = new Date(p.timestamp).getTime();
+        const key = Math.floor(ts / bucketMs) * bucketMs;
+        if (!buckets[key]) buckets[key] = [];
+        buckets[key].push(p);
+      });
+
+      return Object.keys(buckets).sort((a, b) => parseInt(a) - parseInt(b)).map(key => {
+        const b = buckets[key];
+        const avg = (vals) => {
+          const filtered = vals.filter(v => v !== null && v !== undefined);
+          if (filtered.length === 0) return null;
+          return filtered.reduce((a, b) => a + b, 0) / filtered.length;
+        };
+        
+        return {
+          timestamp: new Date(parseInt(key)).toISOString(),
+          percentage: Math.round(avg(b.map(p => p.percentage))),
+          temperature: parseFloat((avg(b.map(p => p.temperature)) || 0).toFixed(1)),
+          altitude: parseFloat((avg(b.map(p => p.altitude)) || 0).toFixed(1)),
+          latitude: avg(b.map(p => p.latitude)),
+          longitude: avg(b.map(p => p.longitude))
+        };
+      });
+    }
+
+    // Default 'auto' mode: target ~60 points using bucket-based middle point selection
+    const limit = 60; 
+    if (data.length <= limit) return data;
+    
+    const result = [];
+    const step = data.length / limit;
+    for (let i = 0; i < limit; i++) {
+      const index = Math.min(Math.floor(i * step + step / 2), data.length - 1);
+      result.push(data[index]);
+    }
+    return result;
+  }
+
+  function renderCharts(data) {
+    const isMobile = window.innerWidth <= 768;
+    const labels = data.map(point => {
+      const d = new Date(point.timestamp);
+      return isMobile 
+        ? d.getHours().toString().padStart(2, '0') + ':00'
+        : d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    });
+
+    const commonOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: isMobile ? 6 : 12, font: { size: 10 } }
+        },
+        y: { type: 'linear', display: true, beginAtZero: false, ticks: { font: { size: 10 } } }
+      }
+    };
+
+    // 1. Battery Chart
+    const ctxBatt = document.getElementById('chart-battery').getContext('2d');
+    if (batteryChart) batteryChart.destroy();
+    batteryChart = new Chart(ctxBatt, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{ label: 'Battery %', data: data.map(p => p.percentage), borderColor: '#007bff', backgroundColor: 'rgba(0, 123, 255, 0.1)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: isMobile ? 2 : 3 }]
+      },
+      options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, beginAtZero: true, max: 100 } } }
+    });
+
+    // 2. Temp Chart
+    const ctxTemp = document.getElementById('chart-temp').getContext('2d');
+    if (tempChart) tempChart.destroy();
+    tempChart = new Chart(ctxTemp, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{ label: 'Temp °C', data: data.map(p => p.temperature), borderColor: '#ffc107', backgroundColor: 'rgba(255, 193, 7, 0.1)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: isMobile ? 2 : 3 }]
+      },
+      options: commonOptions
+    });
+
+    // 3. Alt Chart
+    const ctxAlt = document.getElementById('chart-alt').getContext('2d');
+    if (altChart) altChart.destroy();
+    altChart = new Chart(ctxAlt, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{ label: 'Alt m', data: data.map(p => p.altitude), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: isMobile ? 2 : 3 }]
+      },
+      options: commonOptions
+    });
+  }
+
+  // Tab Handling
+  document.querySelectorAll('.chart-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.chart-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.chart-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`panel-${tab}`).classList.add('active');
+    });
   });
 
-  // --- Leaflet Map Logic ---
-  const validCoords = data.filter(p => p.latitude && p.longitude);
-  if (validCoords.length > 0) {
-    const lastPoint = validCoords[validCoords.length - 1];
-    const map = L.map('map').setView([lastPoint.latitude, lastPoint.longitude], 13);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-
-    const path = validCoords.map(p => [p.latitude, p.longitude]);
-    
-    // Draw the path
-    L.polyline(path, {color: '#007bff', weight: 3, opacity: 0.7}).addTo(map);
-
-    // Add markers for start and end
-    L.marker(path[0]).addTo(map).bindPopup("Start point in history");
-    L.marker(path[path.length - 1]).addTo(map).bindPopup("Current location").openPopup();
-
-    // Zoom to fit path
-    const bounds = L.latLngBounds(path);
-    map.fitBounds(bounds);
-  } else {
-    document.getElementById('map').innerHTML = '<div style="padding: 2rem; text-align: center;" class="text-dim">No location history available for this device.</div>';
+  function clearMap() {
+    if (map) {
+        Object.values(markers).forEach(m => map.removeLayer(m));
+        if (polyline) map.removeLayer(polyline);
+        markers = {};
+    }
   }
+
+  function renderMapAndTimeline(data) {
+    if (!map) {
+      map = L.map('map').setView([0, 0], 2);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+    }
+    clearMap();
+    timelineItems = {};
+    const pathCoords = [];
+    const groupedData = {};
+    
+    [...data].reverse().forEach(point => {
+        const d = new Date(point.timestamp);
+        const dateStr = d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        if (!groupedData[dateStr]) groupedData[dateStr] = [];
+        groupedData[dateStr].push(point);
+    });
+
+    timelineList.innerHTML = '';
+    Object.keys(groupedData).forEach(dateStr => {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'timeline-day';
+        dayDiv.innerHTML = `<div class="timeline-day-label">${dateStr}</div>`;
+        
+        groupedData[dateStr].forEach(point => {
+            const id = point.timestamp;
+            const timeStr = new Date(point.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+                        item.innerHTML = `
+                          <div class="time">${timeStr}</div>
+                          <div class="meta">🔋 ${point.percentage}% | 🌡️ ${point.temperature || '—'}°C</div>
+                          <div class="meta">🏔️ ${point.altitude ? point.altitude.toFixed(1) + ' m' : '—'}</div>
+                          ${point.latitude ? '<div class="meta">📍 Recorded location</div>' : '<div class="meta">⚪ No GPS</div>'}
+                        `;
+            
+            
+            item.onmouseenter = () => highlightMarker(id, true);
+            item.onmouseleave = () => highlightMarker(id, false);
+            item.onclick = () => { if (markers[id]) { map.setView(markers[id].getLatLng(), 16); markers[id].openPopup(); } };
+            
+            dayDiv.appendChild(item);
+            timelineItems[id] = item;
+
+            if (point.latitude && point.longitude) {
+                const latlng = [point.latitude, point.longitude];
+                pathCoords.push(latlng);
+                const marker = L.marker(latlng).addTo(map);
+                marker.bindPopup(`<b>${timeStr}</b><br>Battery: ${point.percentage}%<br>Temp: ${point.temperature}°C<br>Alt: ${point.altitude ? point.altitude.toFixed(1) + 'm' : '—'}`);
+                marker.on('mouseover', () => highlightTimelineItem(id, true));
+                marker.on('mouseout', () => highlightTimelineItem(id, false));
+                markers[id] = marker;
+            }
+        });
+        timelineList.appendChild(dayDiv);
+    });
+
+    if (pathCoords.length > 1) {
+        polyline = L.polyline(pathCoords, {color: '#007bff', weight: 3, opacity: 0.5}).addTo(map);
+        map.fitBounds(L.latLngBounds(pathCoords));
+    } else if (pathCoords.length === 1) {
+        map.setView(pathCoords[0], 15);
+    }
+  }
+
+  function highlightMarker(id, active) {
+      const m = markers[id];
+      if (!m || !m._icon) return;
+      if (active) { m._icon.classList.add('marker-highlight'); m.setZIndexOffset(1000); }
+      else { m._icon.classList.remove('marker-highlight'); m.setZIndexOffset(0); }
+  }
+
+  function highlightTimelineItem(id, active) {
+      const el = timelineItems[id];
+      if (!el) return;
+      if (active) { el.classList.add('highlight'); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+      else { el.classList.remove('highlight'); }
+  }
+
+  presetBtns.forEach(btn => btn.onclick = () => setPreset(btn.dataset.preset));
+  applyBtn.onclick = () => {
+    presetBtns.forEach(b => b.classList.toggle('active', b.dataset.preset === 'custom'));
+    document.getElementById('filter-status').textContent = 'Viewing: Custom Range';
+    loadData();
+  };
+  prevBtn.onclick = () => shiftDay(-1);
+  nextBtn.onclick = () => shiftDay(1);
+
+  // Initialize with Today
+  setPreset('today');
 });
 </script>
 
@@ -187,18 +744,31 @@ document.addEventListener('DOMContentLoaded', async function() {
           <option value="ALL" {% if d.device.config.capture_mode == 'ALL' %}selected{% endif %}>ALL</option>
           <option value="" {% if d.device.config.capture_mode == '' %}selected{% endif %}>NONE (Disabled)</option>
         </select>
-        <p class="text-dim" style="font-size: 0.8rem; margin-top: 0.2rem;">
-          Determines which notifications the device should capture and upload.
-        </p>
       </dd>
-
+      <dt>Telemetry Collection</dt>
+      <dd>
+        <div class="telemetry-options" style="display: flex; gap: 1.5rem; align-items: center; margin-top: 0.2rem;">
+          <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer;">
+            <input type="checkbox" name="collect_battery" value="1" {% if d.device.config.collect_battery %}checked{% endif %}>
+            Battery
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer;">
+            <input type="checkbox" name="collect_temperature" value="1" {% if d.device.config.collect_temperature %}checked{% endif %}>
+            Temperature
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer;">
+            <input type="checkbox" name="collect_location" value="1" {% if d.device.config.collect_location %}checked{% endif %}>
+            Location/GPS
+          </label>
+        </div>
+      </dd>
       <dt>Last Config Update</dt>
       <dd>{{ d.device.config.updated_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</dd>
     </dl>
     <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Update Configuration</button>
   </form>
   {% else %}
-  <p class="text-dim">Configuration not available for this device (not yet approved or legacy).</p>
+  <p class="text-dim">Configuration not available.</p>
   {% endif %}
 </div>
 
@@ -221,18 +791,19 @@ document.addEventListener('DOMContentLoaded', async function() {
     <button type="submit" class="btn btn-green">Reinstate Device</button>
   </form>
   <form method="POST" action="/admin/devices/{{ d.device.id }}/delete"
-        onsubmit="return confirm('PERMANENTLY delete this device? Tokens and config will be removed. Raw events will be preserved but unlinked. This cannot be undone.');">
+        onsubmit="return confirm('PERMANENTLY delete this device?');">
     <button type="submit" class="btn btn-red">Delete Device</button>
   </form>
   {% endif %}
 
   {% if d.device.status != 'revoked' %}
   <form method="POST" action="/admin/devices/{{ d.device.id }}/revoke"
-        onsubmit="return confirm('Are you sure you want to revoke this device? All tokens will be invalidated.');">
+        onsubmit="return confirm('Are you sure you want to revoke this device?');">
     <button type="submit" class="btn btn-red">Revoke Device</button>
   </form>
   {% endif %}
 </div>
 
 <p class="mt-2"><a href="/admin/devices" style="color: var(--accent); font-size: 0.85rem;">← Back to devices</a></p>
+</div>
 {% endblock %}

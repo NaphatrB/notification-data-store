@@ -37,6 +37,47 @@ async def ingest_event(
         event.timestamp / 1000.0, tz=timezone.utc
     )
 
+    # -----------------------------------------------------------------------
+    # Telemetry logic: check if at least 5 minutes have passed since last log
+    # -----------------------------------------------------------------------
+    if event.batteryPercentage is not None:
+        from app.models import DeviceTelemetryLog
+        from sqlalchemy import desc
+
+        # Check last log timestamp
+        last_log_stmt = (
+            select(DeviceTelemetryLog)
+            .where(DeviceTelemetryLog.device_id == device.id)
+            .order_by(desc(DeviceTelemetryLog.created_at))
+            .limit(1)
+        )
+        last_log = (await db.execute(last_log_stmt)).scalar_one_or_none()
+
+        should_log = False
+        if not last_log:
+            should_log = True
+        else:
+            elapsed = datetime.now(timezone.utc) - last_log.created_at
+            if elapsed.total_seconds() >= 300:  # 5 minutes
+                should_log = True
+
+        if should_log:
+            db.add(DeviceTelemetryLog(
+                device_id=device.id,
+                battery_percentage=event.batteryPercentage,
+                temperature=event.temperature,
+                latitude=event.latitude,
+                longitude=event.longitude,
+                altitude=event.altitude
+            ))
+            # Also update the device object's last-known state
+            device.battery_percentage = event.batteryPercentage
+            device.temperature = event.temperature
+            device.latitude = event.latitude
+            device.longitude = event.longitude
+            device.altitude = event.altitude
+            device.last_seen_at = datetime.now(timezone.utc)
+
     row = RawEvent(
         message_hash=event.messageHash,
         package_name=event.packageName,

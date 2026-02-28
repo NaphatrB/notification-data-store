@@ -72,6 +72,7 @@ async def require_device_token(
     x_device_temperature: float | None = Header(None, alias="X-Device-Temperature"),
     x_device_latitude: float | None = Header(None, alias="X-Device-Latitude"),
     x_device_longitude: float | None = Header(None, alias="X-Device-Longitude"),
+    x_device_altitude: float | None = Header(None, alias="X-Device-Altitude"),
     db: AsyncSession = Depends(get_db),
 ) -> Device:
     """Dependency: validate Bearer token and return the associated Device.
@@ -93,10 +94,12 @@ async def require_device_token(
     plaintext = authorization[7:]  # strip "Bearer "
     token_hash = hash_token(plaintext)
 
-    # Look up token + eagerly load device
+    # Look up token + eagerly load device and config
     stmt = (
         select(DeviceToken)
-        .options(selectinload(DeviceToken.device))
+        .options(
+            selectinload(DeviceToken.device).selectinload(Device.config)
+        )
         .where(DeviceToken.token_hash == token_hash)
     )
     result = await db.execute(stmt)
@@ -130,47 +133,61 @@ async def require_device_token(
 
     # Heartbeat: update last_seen_at
     device.last_seen_at = datetime.now(timezone.utc)
+    
+    config = device.config
     if x_battery_level is not None:
-        # Check if we should log a new history entry
-        # We log if:
-        # 1. Level or location or temp changed
-        # 2. No logs yet
-        # 3. Last log is > 15 mins old
-        should_log = False
-        if (device.battery_percentage != x_battery_level or 
-            device.temperature != x_device_temperature or
-            device.latitude != x_device_latitude or
-            device.longitude != x_device_longitude):
-            should_log = True
-        else:
-            # Check last log timestamp
-            last_log_stmt = (
-                select(DeviceTelemetryLog)
-                .where(DeviceTelemetryLog.device_id == device.id)
-                .order_by(desc(DeviceTelemetryLog.created_at))
-                .limit(1)
-            )
-            last_log = (await db.execute(last_log_stmt)).scalar_one_or_none()
-            if not last_log:
+        # Respect granular config
+        batt = x_battery_level if (config and config.collect_battery) else None
+        temp = x_device_temperature if (config and config.collect_temperature) else None
+        
+        lat = None
+        lng = None
+        alt = None
+        if config and config.collect_location:
+            lat = x_device_latitude
+            lng = x_device_longitude
+            alt = x_device_altitude
+
+        # Only log if some data is actually collected
+        if any(v is not None for v in [batt, temp, lat, lng, alt]):
+            should_log = False
+            if (device.battery_percentage != batt or 
+                device.temperature != temp or
+                device.latitude != lat or
+                device.longitude != lng or
+                device.altitude != alt):
                 should_log = True
             else:
-                elapsed = datetime.now(timezone.utc) - last_log.created_at
-                if elapsed.total_seconds() > 900:  # 15 minutes
+                # Check last log timestamp
+                last_log_stmt = (
+                    select(DeviceTelemetryLog)
+                    .where(DeviceTelemetryLog.device_id == device.id)
+                    .order_by(desc(DeviceTelemetryLog.created_at))
+                    .limit(1)
+                )
+                last_log = (await db.execute(last_log_stmt)).scalar_one_or_none()
+                if not last_log:
                     should_log = True
+                else:
+                    elapsed = datetime.now(timezone.utc) - last_log.created_at
+                    if elapsed.total_seconds() > 900:  # 15 minutes
+                        should_log = True
 
-        if should_log:
-            db.add(DeviceTelemetryLog(
-                device_id=device.id, 
-                battery_percentage=x_battery_level,
-                temperature=x_device_temperature,
-                latitude=x_device_latitude,
-                longitude=x_device_longitude
-            ))
+            if should_log:
+                db.add(DeviceTelemetryLog(
+                    device_id=device.id, 
+                    battery_percentage=batt if batt is not None else (device.battery_percentage or 0),
+                    temperature=temp,
+                    latitude=lat,
+                    longitude=lng,
+                    altitude=alt
+                ))
 
-        device.battery_percentage = x_battery_level
-        device.temperature = x_device_temperature
-        device.latitude = x_device_latitude
-        device.longitude = x_device_longitude
+        if batt is not None: device.battery_percentage = batt
+        if temp is not None: device.temperature = temp
+        if lat is not None: device.latitude = lat
+        if lng is not None: device.longitude = lng
+        if alt is not None: device.altitude = alt
+
     await db.commit()
-
     return device

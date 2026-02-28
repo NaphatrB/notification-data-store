@@ -180,17 +180,22 @@ async def raw_table(
     ).correlate(RawEvent)
 
     # Main query
-    stmt = select(
-        RawEvent.id,
-        RawEvent.seq,
-        RawEvent.device_id,
-        RawEvent.source_type,
-        RawEvent.app_name,
-        RawEvent.title,
-        RawEvent.event_timestamp,
-        RawEvent.received_at,
-        has_price.label("is_parsed"),
-        has_dead_letter.label("is_dead_letter"),
+    stmt = (
+        select(
+            RawEvent.id,
+            RawEvent.seq,
+            RawEvent.device_id,
+            Device.device_name,
+            Device.device_uuid,
+            RawEvent.source_type,
+            RawEvent.app_name,
+            RawEvent.title,
+            RawEvent.event_timestamp,
+            RawEvent.received_at,
+            has_price.label("is_parsed"),
+            has_dead_letter.label("is_dead_letter"),
+        )
+        .outerjoin(Device, RawEvent.device_id == Device.id)
     )
     count_stmt = select(func.count(RawEvent.id))
 
@@ -280,6 +285,8 @@ async def raw_table(
             "id": r.id,
             "seq": r.seq,
             "device_id": r.device_id,
+            "device_name": r.device_name,
+            "device_uuid": r.device_uuid,
             "source_type": r.source_type,
             "app_name": r.app_name,
             "title": r.title,
